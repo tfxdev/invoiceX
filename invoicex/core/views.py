@@ -1,10 +1,15 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
+from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from decimal import Decimal
 
 from .models import Invoice, Product, Customer, InvoiceItem
+
+def custom_404_view(request, exception=None):
+    """Redirect all 404 errors to the create invoice page."""
+    return HttpResponseRedirect(reverse('create_invoice'))
 
 def invoice_view(request, invoice_id):
     invoice = Invoice.objects.get(id=invoice_id)

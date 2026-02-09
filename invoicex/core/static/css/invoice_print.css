@@ -21,8 +21,8 @@ body {
 
 .invoice-header {
     text-align: center;
-    margin-bottom: 1.5rem; /* Reduced margin */
-    padding-bottom: 0.5rem; /* Reduced padding */
+    margin-bottom: 0.5rem; /* Even further reduced margin */
+    padding-bottom: 10px; /* Even further reduced padding */
     border-bottom: 1px dashed #000;
 }
 
@@ -37,9 +37,14 @@ body {
 .invoice-meta,
 .customer-details {
     font-size: 0.9em;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem; /* Compacted margin */
 }
-
+.company-details p {
+    /* Removed conflicting margin-top */
+}
+.company-details h2 {
+    /* Removed conflicting margin-top */
+}
 .customer-details h3 {
     font-size: 1.2em;
     margin-bottom: 0.5rem;
@@ -55,7 +60,7 @@ body {
 
 #invoice-items-table th,
 #invoice-items-table td {
-    padding: 0.5rem; /* More padding for A4 */
+    padding: 0.5rem;
     text-align: left;
     border-bottom: 1px dotted #ccc;
 }
@@ -64,6 +69,7 @@ body {
     font-weight: 700;
     text-transform: uppercase;
     border-bottom: 1px solid #000; /* Solid line for header */
+    white-space: nowrap;
 }
 
 #invoice-items-table td:nth-child(1) { /* SL */
@@ -104,7 +110,7 @@ body {
 }
 
 .invoice-footer {
-    margin-top: 2rem;
+    margin-top: 1.5rem; /* Compacted margin */
     border-top: 1px dashed #000;
     padding-top: 1rem;
     text-align: center;
@@ -125,7 +131,26 @@ body {
     font-size: 0.9em;
     font-family: 'Roboto Mono', monospace;
 }
-
+.customer-details p {
+    margin-top: 0;
+    margin-bottom: 4px;
+}
+.invoice-meta p {
+    margin-top: 0;
+    margin-bottom: 0;
+}.invoice-meta {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+}
+.company-details, .invoice-meta, .customer-details {
+    font-size: 0.9em;
+    margin-bottom: 0rem;
+}
+.company-details p {
+    margin: 0;
+    margin-bottom: 0px;
+}
 @media print {
     body {
         background-color: #fff;
@@ -136,6 +161,7 @@ body {
         box-shadow: none;
         margin: 0;
         border: none;
+        padding: 0cm; /* Unified padding */
     }
     .no-print {
         display: none;
@@ -143,4 +169,9 @@ body {
     .print-button {
         display: none;
     }
+    /* Removed conflicting invoice-meta style */
+    .company-details h2 {
+        margin: 0;
+    }
+
 }

@@ -31,6 +31,10 @@ class Invoice(models.Model):
     def __str__(self):
         return f"Invoice #{self.id}"
 
+    def get_print_invoice_link(self):
+        from django.urls import reverse
+        return reverse('invoice_view', args=[self.id])
+
 class InvoiceItem(models.Model):
     invoice = models.ForeignKey(Invoice, related_name='items', on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True)
