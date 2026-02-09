@@ -1,0 +1,146 @@
+/* KOT-style Print-Optimized Invoice Style */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap');
+
+body {
+    background-color: #e0e0e0;
+    font-family: 'Roboto Mono', monospace;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 0;
+    color: #000;
+}
+
+.invoice-sheet {
+    background: white;
+    width: 210mm; /* A4 width */
+    padding: 1.5cm; /* Standard A4 padding */
+    font-size: 10pt; /* Larger font for A4 */
+    line-height: 1.4;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.invoice-header {
+    text-align: center;
+    margin-bottom: 1.5rem; /* Reduced margin */
+    padding-bottom: 0.5rem; /* Reduced padding */
+    border-bottom: 1px dashed #000;
+}
+
+.invoice-header h1 {
+    font-size: 2.5em; /* Larger header for A4 */
+    margin: 0;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.company-details,
+.invoice-meta,
+.customer-details {
+    font-size: 0.9em;
+    margin-bottom: 1.5rem;
+}
+
+.customer-details h3 {
+    font-size: 1.2em;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 0.3rem;
+}
+
+#invoice-items-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+#invoice-items-table th,
+#invoice-items-table td {
+    padding: 0.5rem; /* More padding for A4 */
+    text-align: left;
+    border-bottom: 1px dotted #ccc;
+}
+
+#invoice-items-table th {
+    font-weight: 700;
+    text-transform: uppercase;
+    border-bottom: 1px solid #000; /* Solid line for header */
+}
+
+#invoice-items-table td:nth-child(1) { /* SL */
+    width: 5%;
+}
+#invoice-items-table td:nth-child(2) { /* Product */
+    width: 50%;
+}
+#invoice-items-table td:nth-child(3) { /* Quantity */
+    width: 10%;
+    text-align: center;
+}
+#invoice-items-table td:nth-child(4) { /* Price */
+    width: 15%;
+    text-align: right;
+}
+#invoice-items-table td:nth-child(5) { /* Subtotal */
+    width: 20%;
+    text-align: right;
+}
+
+.summary-table {
+    width: 50%; /* Summary on the right side */
+    margin-left: auto;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.summary-table tr:first-child th, .summary-table tr:first-child td {
+    border-top: 1px dashed #000;
+    padding-top: 0.5rem;
+}
+
+.summary-table th,
+.summary-table td {
+    padding: 0.4rem;
+    text-align: right;
+}
+
+.invoice-footer {
+    margin-top: 2rem;
+    border-top: 1px dashed #000;
+    padding-top: 1rem;
+    text-align: center;
+    font-size: 0.8em;
+}
+
+.print-button {
+    display: block;
+    width: 200px;
+    margin: 2rem auto;
+    padding: 0.75rem;
+    background-color: #333;
+    color: white;
+    text-align: center;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-family: 'Roboto Mono', monospace;
+}
+
+@media print {
+    body {
+        background-color: #fff;
+        padding: 0;
+        margin: 0;
+    }
+    .invoice-sheet {
+        box-shadow: none;
+        margin: 0;
+        border: none;
+    }
+    .no-print {
+        display: none;
+    }
+    .print-button {
+        display: none;
+    }
+}

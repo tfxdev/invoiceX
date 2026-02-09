@@ -1,5 +1,14 @@
 from django.db import models
 
+class Customer(models.Model):
+    name = models.CharField(max_length=50)
+    phone = models.CharField(max_length=20)
+    address = models.CharField(max_length=220)
+    due = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    def __str__(self):
+        return self.name
+
 class Product(models.Model):
     name = models.CharField(max_length=255)
     qty = models.IntegerField()
@@ -9,6 +18,7 @@ class Product(models.Model):
         return self.name
 
 class Invoice(models.Model):
+    customer = models.ForeignKey(Customer, null=True, on_delete=models.SET_NULL)
     total_value = models.DecimalField(max_digits=10, decimal_places=2)
     discount_percent = models.DecimalField(max_digits=10, decimal_places=2)
     payable_value = models.DecimalField(max_digits=10, decimal_places=2)

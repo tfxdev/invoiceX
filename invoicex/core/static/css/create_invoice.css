@@ -1,0 +1,116 @@
+/* Custom styles for a beautiful, compact, green-themed invoice page */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+body {
+    background-color: #f0f2f5; /* A softer, more professional background */
+    font-family: 'Poppins', sans-serif;
+    color: #333;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    background: linear-gradient(45deg, #28a745, #218838); /* Eye-catching green gradient */
+    color: white;
+    padding: 1rem 1.5rem;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom: none;
+}
+
+.card-header h1 {
+    font-weight: 600;
+    font-size: 1.75rem;
+    margin: 0;
+}
+
+.card-body {
+    padding: 1.5rem; /* Reduced padding for compactness */
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.3rem;
+}
+
+.form-control, .form-select {
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+    transition: all 0.2s ease-in-out;
+    font-size: 0.9rem; /* Smaller font for compactness */
+    padding: 0.5rem 0.75rem; /* Compact padding */
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+#invoice-items-table th {
+    background-color: #f8f9fa;
+    font-weight: 500;
+}
+
+#invoice-items-table th, #invoice-items-table td {
+    padding: 0.6rem; /* Compact table cells */
+}
+
+/* Summary table styling */
+.summary-card {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.summary-table th, .summary-table td {
+    padding: 0.5rem 1rem;
+}
+
+.summary-table input.form-control-sm {
+    max-width: 120px;
+    font-weight: 500;
+}
+
+#total-value, #payable-value, #due-amount {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+#due-amount {
+    color: #dc3545; /* Make due amount stand out */
+}
+
+.btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+    transition: background-color 0.2s;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-primary.btn-lg {
+    background: linear-gradient(45deg, #1e963b, #28a745);
+    border: none;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: transform 0.2s;
+}
+
+.btn-primary.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
