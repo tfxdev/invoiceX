@@ -20,8 +20,8 @@
         </div>
 
         <div class="invoice-meta">
-            <p>Date: {{ invoice.created_at|date:"Y-m-d H:i" }}</p>
-            <p>Invoice #: {{ invoice.id }}</p>
+            <p>Date: {{ invoice.created_at|date:"Y-m-d h:i A" }}</p>
+            <p>Invoice #: {{ invoice.id }}<br/> <b>{{ invoice.invoice_type |title}} Invoice</b></p>
         </div>
 
         <div class="customer-details">
@@ -50,7 +50,7 @@
                     <td>{{ forloop.counter }}</td>
                     <td>{{ item.product.name }}</td>
                     <td>{{ item.quantity }}</td>
-                    <td>{{ item.product.price|floatformat:0 }}</td>
+                    <td>{{ item.price|floatformat:0 }}</td>
                     <td>{{ item.subtotal|floatformat:0 }}</td>
                 </tr>
                 {% endfor %}

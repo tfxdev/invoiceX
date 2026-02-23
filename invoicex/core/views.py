@@ -1,26 +1,39 @@
-from django.shortcuts import render
-from django.http import JsonResponse, HttpResponseRedirect
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 import json
 from decimal import Decimal
 
-from .models import Invoice, Product, Customer, InvoiceItem
+from .models import Invoice, Product, Customer, InvoiceItem, CompanyProfile, StockRecord
+
 
 def custom_404_view(request, exception=None):
     """Redirect all 404 errors to the create invoice page."""
     return HttpResponseRedirect(reverse('create_invoice'))
 
+@login_required
 def invoice_view(request, invoice_id):
-    invoice = Invoice.objects.get(id=invoice_id)
-    return render(request, 'invoice.html', {'invoice': invoice})
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    if invoice.user != request.user:
+        raise Http404
+    
+    try:
+        company_profile = CompanyProfile.objects.get(user=request.user)
+    except CompanyProfile.DoesNotExist:
+        company_profile = None # Handle case where user has no company profile
 
+    return render(request, 'invoice.html', {'invoice': invoice, 'company_profile': company_profile})
+
+@login_required
 def create_invoice_view(request):
-    products = Product.objects.all()
-    customers = Customer.objects.all()
+    products = Product.objects.filter(user=request.user)
+    customers = Customer.objects.filter(user=request.user)
     return render(request, 'create_invoice.html', {'products': products, 'customers': customers})
 
 @csrf_exempt
+@login_required
 def save_invoice_api(request):
     if request.method == 'POST':
         try:
@@ -29,9 +42,13 @@ def save_invoice_api(request):
             customer_id = data.get('customer_id')
             customer = None
             if customer_id:
-                customer = Customer.objects.get(id=customer_id)
+                # Ensure the customer belongs to the current user
+                customer = get_object_or_404(Customer, id=customer_id, user=request.user)
 
+            # Create the invoice and assign it to the current user
             invoice = Invoice.objects.create(
+                user=request.user,
+                invoice_type=data['invoice_type'],
                 customer=customer,
                 total_value=Decimal(data['total_value']),
                 discount_percent=Decimal(data['discount_percent']),
@@ -43,21 +60,43 @@ def save_invoice_api(request):
             
             # Create InvoiceItems and update product quantities
             for item_data in data['items']:
-                product = Product.objects.get(id=item_data['product_id'])
+                # Ensure the product belongs to the current user
+                product = get_object_or_404(Product, id=item_data['product_id'], user=request.user)
                 quantity_sold = int(item_data['quantity'])
                 
                 InvoiceItem.objects.create(
                     invoice=invoice,
                     product=product,
                     quantity=quantity_sold,
+                    price=Decimal(item_data['price']),
                     subtotal=Decimal(item_data['subtotal'])
                 )
-                
+
                 # Update product quantity
-                product.qty -= quantity_sold
+                if data['invoice_type'] == 'sale':
+                    product.qty -= quantity_sold
+                    StockRecord.objects.create(
+                            user=request.user,
+                            product=product,
+                            qty=quantity_sold,
+                            stock_type=data['invoice_type'],
+                        )
+                elif data['invoice_type'] == 'purchase':
+                    product.qty += quantity_sold
+                    StockRecord.objects.create(
+                            user=request.user,
+                            product=product,
+                            qty=quantity_sold,
+                            stock_type=data['invoice_type'],
+                        )
                 product.save()
             
             return JsonResponse({'status': 'success', 'invoice_id': invoice.id})
         except Exception as e:
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'}, status=405)
+
+
+def profile_settings(request):
+    context = {}
+    return render(request, 'profile_settings.html', context)
