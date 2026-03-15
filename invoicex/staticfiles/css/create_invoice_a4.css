@@ -85,3 +85,29 @@ body {
     background-color: #212d3a;
     border-color: #1e2833;
 }
+
+
+.select2-container {
+    box-sizing: border-box;
+    display: inline-block;
+    margin: 0;
+    position: relative;
+    vertical-align: middle;
+    height: 40px;
+    background: #e3ffeb;
+    border-radius: 7px;
+    color: #000;
+    border: 1px solid #00b357;
+}
+.select2-container--default .select2-selection--single {
+    background-color: #ffffff00;
+    border: 1px solid #aaaaaa00;
+    border-radius: 4px;
+    padding-top: 4px;
+}
+
+.select2-container--default .select2-selection--single {
+    background-color: #ffffff00;
+    border: 1px solid #aaaaaa00;
+    border-radius: 4px;
+}

@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,7 +7,7 @@ import json
 from decimal import Decimal
 
 from .models import Invoice, Product, Customer, InvoiceItem, CompanyProfile, StockRecord
-
+from .forms import *
 
 def custom_404_view(request, exception=None):
     """Redirect all 404 errors to the create invoice page."""
@@ -98,5 +98,22 @@ def save_invoice_api(request):
 
 
 def profile_settings(request):
-    context = {}
+    company_profile = get_object_or_404(CompanyProfile, user=request.user)
+    user_account = get_object_or_404(User, username = request.user.username)
+    
+    if request.method == 'POST':
+        company_profile_form = CompanyProfileForm(request.POST, instance=company_profile)
+        user_account_form = AccountForm(request.POST, instance=user_account)
+
+        if company_profile_form.is_valid() and user_account_form.is_valid():
+            company_profile_form.save()
+            user_account_form.save()
+            return redirect(profile_settings)
+    else:
+        cp_form = CompanyProfileForm(instance=company_profile)
+        ua_form = AccountForm(instance=user_account)
+    context = {
+        'company_profile_form': cp_form,
+        'user_account_form': ua_form
+    }
     return render(request, 'profile_settings.html', context)

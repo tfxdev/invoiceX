@@ -24,18 +24,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function calculateRow(row) {
-        const productSelect = row.querySelector('.product-select');
         const quantityInput = row.querySelector('.quantity');
         const priceInput = row.querySelector('.price');
         const subtotalCell = row.querySelector('.subtotal');
 
-        const selectedOption = productSelect.options[productSelect.selectedIndex];
         let price = parseFloat(priceInput.value);
-        
-        if (isNaN(price) && selectedOption && selectedOption.dataset.price) {
-            price = parseFloat(selectedOption.dataset.price);
-            priceInput.value = price.toFixed(2);
-        } else if (isNaN(price)) {
+        if (isNaN(price)) {
             price = 0;
         }
 
@@ -69,6 +63,16 @@ document.addEventListener('DOMContentLoaded', function() {
         tableBody.appendChild(newRow);
         const addedRow = tableBody.lastElementChild;
         attachRowListeners(addedRow);
+        
+        // Initialize Select2 on the new product select element
+        if (typeof jQuery !== 'undefined' && $.fn.select2) {
+            $(addedRow).find('.product-select').select2({
+                placeholder: "Select a Product",
+                allowClear: true,
+                width: '100%'
+            });
+        }
+        
         calculateRow(addedRow);
     }
 
@@ -81,7 +85,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function attachRowListeners(row) {
-        row.querySelector('.product-select').addEventListener('change', () => calculateRow(row));
+        const productSelect = $(row).find('.product-select');
+        
+        // Listen to change event using jQuery (to capture Select2 events)
+        productSelect.on('change', function(e) {
+            const selectedOption = this.options[this.selectedIndex];
+            const priceInput = row.querySelector('.price');
+            
+            if (selectedOption && selectedOption.dataset.price) {
+                priceInput.value = parseFloat(selectedOption.dataset.price).toFixed(2);
+            } else if (!this.value) {
+                priceInput.value = '';
+            }
+            calculateRow(row);
+        });
+
         row.querySelector('.quantity').addEventListener('input', () => calculateRow(row));
         row.querySelector('.price').addEventListener('input', () => calculateRow(row));
     }
