@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% block title %}Customer Directory - KOT POS{% endblock %}
+
+{% block content %}
+<style>
+    .directory-card { background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .table-hover tbody tr:hover { background-color: rgba(0, 106, 78, 0.03); }
+    .action-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; transition: 0.2s; cursor: pointer; border: none; background: transparent;}
+    .action-btn:hover { background-color: #f3f4f6; }
+    .search-input:focus { box-shadow: 0 0 0 0.25rem rgba(0, 106, 78, 0.25); border-color: #006a4e; }
+</style>
+
+<div class="container mt-4 mb-5">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">Customer Directory</h2>
+            <p class="text-muted mb-0">Manage your client details and balances.</p>
+        </div>
+        <button class="btn text-white fw-bold shadow-sm px-4 py-2" style="background-color: #006a4e; border-radius: 8px;" onclick="openCustomerModal('add')">
+            <i class="fa-solid fa-user-plus me-2"></i> Add Customer
+        </button>
+    </div>
+
+    <div class="directory-card overflow-hidden">
+        
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" id="directorySearch" class="form-control border-start-0 search-input" placeholder="Search by Name or Phone..." onkeyup="filterTable()">
+            </div>
+            <span class="text-muted small fw-bold"><span id="rowCount">{{ customers|length }}</span> Customers</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="directoryTable">
+                <thead class="table-light text-muted small text-uppercase" style="letter-spacing: 0.5px;">
+                    <tr>
+                        <th class="ps-4">Name</th>
+                        <th>Phone</th>
+                        <th>Address</th>
+                        <th class="text-end">Balance Due</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cust in customers %}
+                    <tr data-search="{{ cust.name|lower }} {{ cust.phone }}">
+                        <td class="ps-4 fw-bold text-dark">{{ cust.name }}</td>
+                        <td class="text-muted">{{ cust.phone|default:"-" }}</td>
+                        <td class="text-muted text-truncate" style="max-width: 200px;">{{ cust.address|default:"-" }}</td>
+                        <td class="text-end fw-bold {% if cust.due > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {{ cust.due|floatformat:2 }} ৳
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="action-btn text-success" title="Receive Payment" onclick="openBalanceModal('{{ cust.id }}', '{{ cust.name|escapejs }}', '{{ cust.due }}')">
+                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                            </button>
+                            
+                            <button class="action-btn text-info" title="Ledger History" onclick="openLedgerModal('{{ cust.id }}')">
+                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                            </button>
+                            
+                            <button class="action-btn text-warning" title="Edit Profile" onclick="openCustomerModal('edit', '{{ cust.id }}', '{{ cust.name|escapejs }}', '{{ cust.phone|escapejs }}', '{{ cust.address|escapejs }}', '{{ cust.due }}')">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            
+                            <form method="POST" action="{% url 'delete_customer' cust.id %}" style="display:inline;" onsubmit="return confirm('Delete customer {{ cust.name }}? This will remove their profile and balance entirely.');">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn text-danger" title="Delete Customer">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-users fs-1 mb-3 opacity-25 text-dark"></i>
+                            <h5>No customers found</h5>
+                            <p>You don't have any saved customers yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="customerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold" id="customerModalLabel">Add Customer</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'customer_list' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="formAction" value="add">
+          <input type="hidden" name="customer_id" id="formCustomerId" value="">
+          
+          <div class="modal-body p-4">
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Full Name <span class="text-danger">*</span></label>
+                  <input type="text" name="name" id="formName" class="form-control" required>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Phone Number</label>
+                  <input type="text" name="phone" id="formPhone" class="form-control">
+              </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Address</label>
+                  <textarea name="address" id="formAddress" class="form-control" rows="2"></textarea>
+              </div>
+              <div class="mb-3" id="dueInputGroup">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Opening Balance Due (৳)</label>
+                  <input type="number" step="0.01" name="due" id="formDue" class="form-control" value="0.00">
+              </div>
+          </div>
+          <div class="modal-footer bg-light border-top-0">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn text-white fw-bold" style="background-color: #006a4e;">Save Customer</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="balanceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-hand-holding-dollar me-2 text-success"></i>Manage Balance</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'customer_list' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="adjust_balance">
+          <input type="hidden" name="customer_id" id="balanceCustomerId" value="">
+          
+          <div class="modal-body p-4">
+              <p class="mb-4">Updating balance for: <strong id="balanceCustomerName" class="text-dark fs-5"></strong><br>
+              <span class="text-muted small">Current Due: <span id="balanceCurrentDue" class="fw-bold text-danger"></span> ৳</span></p>
+              
+              <div class="row mb-3">
+                  <div class="col-6">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Action</label>
+                      <select name="trans_type" class="form-select fw-bold">
+                          <option value="payment" class="text-success">Receive Payment (-)</option>
+                          <option value="charge" class="text-danger">Add to Due (+)</option>
+                      </select>
+                  </div>
+                  <div class="col-6">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Amount (৳)</label>
+                      <input type="number" step="0.01" name="amount" class="form-control" min="0.01" required placeholder="0.00">
+                  </div>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Note / Receipt Number</label>
+                  <input type="text" name="note" class="form-control" placeholder="e.g. Paid via Cash/Bkash" required>
+              </div>
+          </div>
+          <div class="modal-footer bg-light border-top-0">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success fw-bold">Confirm Transaction</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="ledgerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2 text-info"></i>Ledger: <span id="ledgerCustomerName" class="text-dark"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+          <div class="bg-light p-3 border-bottom text-center">
+              <span class="text-muted fw-bold text-uppercase small">Current Balance Due</span>
+              <h3 class="fw-bold text-danger mb-0" id="ledgerCurrentDue">0.00 ৳</h3>
+          </div>
+          <div id="ledgerLoading" class="text-center p-5 text-muted">
+              <div class="spinner-border text-info mb-3" role="status"></div>
+              <p>Fetching ledger records...</p>
+          </div>
+          <table class="table table-hover align-middle mb-0" id="ledgerTable" style="display: none;">
+              <thead class="table-light text-muted small text-uppercase">
+                  <tr>
+                      <th class="ps-4">Date</th>
+                      <th class="text-end">Amount</th>
+                      <th class="pe-4 ps-3">Note</th>
+                  </tr>
+              </thead>
+              <tbody id="ledgerTableBody">
+                  </tbody>
+          </table>
+      </div>
+      <div class="modal-footer bg-light border-top-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function filterTable() {
+        const input = document.getElementById("directorySearch").value.toLowerCase();
+        const rows = document.querySelectorAll("#directoryTable tbody tr");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return; 
+            const searchData = row.getAttribute('data-search');
+            if (searchData.includes(input)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        document.getElementById("rowCount").innerText = visibleCount;
+    }
+
+    function openCustomerModal(action, id='', name='', phone='', address='', due='0.00') {
+        document.getElementById('formAction').value = action;
+        document.getElementById('customerModalLabel').innerText = action === 'add' ? 'Add New Customer' : 'Edit Customer Profile';
+        
+        document.getElementById('formCustomerId').value = id;
+        document.getElementById('formName').value = name;
+        document.getElementById('formPhone').value = phone;
+        document.getElementById('formAddress').value = address;
+        
+        // Hide initial due field if editing (force them to use the safe payment popup)
+        document.getElementById('dueInputGroup').style.display = action === 'add' ? 'block' : 'none';
+        
+        const modal = new bootstrap.Modal(document.getElementById('customerModal'));
+        modal.show();
+    }
+    
+    function openBalanceModal(id, name, currentDue) {
+        document.getElementById('balanceCustomerId').value = id;
+        document.getElementById('balanceCustomerName').innerText = name;
+        document.getElementById('balanceCurrentDue').innerText = parseFloat(currentDue).toFixed(2);
+        
+        const modal = new bootstrap.Modal(document.getElementById('balanceModal'));
+        modal.show();
+    }
+    
+    async function openLedgerModal(customerId) {
+        document.getElementById('ledgerCustomerName').innerText = "Loading...";
+        document.getElementById('ledgerCurrentDue').innerText = "0.00 ৳";
+        document.getElementById('ledgerTableBody').innerHTML = '';
+        document.getElementById('ledgerLoading').style.display = 'block';
+        document.getElementById('ledgerTable').style.display = 'none';
+        
+        const modal = new bootstrap.Modal(document.getElementById('ledgerModal'));
+        modal.show();
+
+        try {
+            const response = await fetch(`/api/customer/${customerId}/ledger/`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                document.getElementById('ledgerCustomerName').innerText = data.customer_name;
+                document.getElementById('ledgerCurrentDue').innerText = data.current_due.toFixed(2) + " ৳";
+                
+                if (data.history.length === 0) {
+                    document.getElementById('ledgerTableBody').innerHTML = `
+                        <tr><td colspan="3" class="text-center p-4 text-muted">No transactions found.</td></tr>`;
+                } else {
+                    let rowsHtml = '';
+                    data.history.forEach(record => {
+                        const isPayment = record.type === 'payment';
+                        const colorClass = isPayment ? 'text-success' : 'text-danger';
+                        const sign = isPayment ? '-' : '+';
+                        const typeBadge = isPayment ? '<span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-1 py-0">PAYMENT</span>' : '<span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-1 py-0">CHARGE</span>';
+                        
+                        rowsHtml += `
+                            <tr>
+                                <td class="ps-4" style="font-size: 0.85rem;"><span class="text-dark fw-bold">${record.date.split(' - ')[0]}</span><br><span class="text-muted">${record.date.split(' - ')[1]}</span></td>
+                                <td class="text-end fw-bold ${colorClass} fs-6">${sign}${record.amount.toFixed(2)} ৳<br>${typeBadge}</td>
+                                <td class="pe-4 ps-3 text-muted small">${record.note}</td>
+                            </tr>
+                        `;
+                    });
+                    document.getElementById('ledgerTableBody').innerHTML = rowsHtml;
+                }
+                
+                document.getElementById('ledgerLoading').style.display = 'none';
+                document.getElementById('ledgerTable').style.display = 'table';
+            }
+        } catch (error) {
+            alert("Failed to fetch ledger history.");
+            modal.hide();
+        }
+    }
+</script>
+{% endblock %}

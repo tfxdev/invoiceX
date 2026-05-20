@@ -1,96 +1,204 @@
 {% load static %}
-{% load math_filters %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KOT - Invoice #{{ invoice.id }}</title>
-    <link rel="stylesheet" href="{% static 'css/invoice_print.css' %}">
+    <title>Invoice #{{ invoice.id }} - {{ company_profile.company_name|default:"Company" }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --text-main: #111111;
+            --text-muted: #555555;
+            --border-light: #e5e5e5;
+            --border-dark: #222222;
+            --bg-body: #f4f4f5;
+            --bg-paper: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-body); color: var(--text-main); line-height: 1.5; font-size: 14px; }
+
+        .action-bar { max-width: 800px; margin: 20px auto 0; padding: 15px 20px; background: var(--bg-paper); border: 1px solid var(--border-light); border-radius: 6px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .btn-group { display: flex; gap: 10px; }
+        .btn { padding: 8px 16px; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 4px; cursor: pointer; border: 1px solid var(--border-dark); transition: all 0.2s ease; font-family: inherit; }
+        .btn-primary { background: var(--text-main); color: #fff; }
+        .btn-primary:hover { background: #333; }
+        .btn-outline { background: transparent; color: var(--text-main); }
+        .btn-outline:hover { background: #f9f9f9; }
+
+        .invoice-sheet { max-width: 800px; margin: 20px auto 40px; background: var(--bg-paper); padding: 50px 60px; border: 1px solid var(--border-light); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+        .company-info h2 { font-size: 24px; font-weight: 700; text-transform: uppercase; letter-spacing: -0.5px; margin-bottom: 5px; }
+        .company-info p { color: var(--text-muted); font-size: 13px; }
+
+        .invoice-title-section { text-align: right; }
+        .invoice-title-section h1 { font-size: 32px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+        .invoice-meta { display: grid; grid-template-columns: auto auto; gap: 5px 20px; text-align: right; font-size: 13px; }
+        .invoice-meta span:nth-child(odd) { color: var(--text-muted); font-weight: 500; }
+        .invoice-meta span:nth-child(even) { font-weight: 600; }
+
+        .billing-row { display: flex; justify-content: space-between; margin-bottom: 30px; padding-top: 20px; border-top: 1px solid var(--border-light); }
+        .bill-to h3 { font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 8px; }
+        .bill-to p.name { font-weight: 600; font-size: 15px; margin-bottom: 2px; }
+        .bill-to p { color: var(--text-muted); font-size: 13px; }
+
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .items-table th { text-align: left; padding: 12px 8px; font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; border-top: 2px solid var(--border-dark); border-bottom: 2px solid var(--border-dark); }
+        .items-table td { padding: 12px 8px; border-bottom: 1px solid var(--border-light); font-size: 13px; }
+        .items-table th.right, .items-table td.right { text-align: right; }
+        .items-table th.center, .items-table td.center { text-align: center; }
+        .items-table td.item-name { font-weight: 600; }
+
+        .summary-container { display: flex; justify-content: flex-end; margin-bottom: 50px; }
+        .summary-box { width: 300px; }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 13px; border-bottom: 1px solid var(--border-light); }
+        .summary-row.total-row { font-size: 16px; font-weight: 700; border-bottom: 2px solid var(--border-dark); border-top: 2px solid var(--border-dark); padding: 12px 0; margin-top: 5px; }
+        .summary-row.due-row { font-size: 14px; font-weight: 700; border-bottom: none; padding-top: 12px; }
+
+        .signatures { display: flex; justify-content: space-between; margin-top: 60px; }
+        .sig-line { width: 200px; border-top: 1px solid var(--border-dark); text-align: center; padding-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+        .footer { margin-top: 40px; text-align: center; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+
+        @media print {
+            @page { margin: 10mm; size: A4; }
+            body { background: white; margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .no-print, .action-bar { display: none !important; }
+            .invoice-sheet { box-shadow: none; border: none; margin: 0; padding: 0; max-width: 100%; }
+            .header { margin-bottom: 20px; }
+            .billing-row { margin-bottom: 20px; padding-top: 15px; }
+            .items-table { margin-bottom: 20px; }
+            .items-table th, .items-table td { padding: 8px 4px; }
+            .summary-container { margin-bottom: 30px; }
+            .signatures { margin-top: 40px; }
+            .items-table tr { page-break-inside: avoid; }
+        }
+    </style>
 </head>
 <body>
+
+    <div class="action-bar no-print">
+        <div class="status">
+            <span style="font-weight: 600; color: var(--text-muted);">Status:</span> 
+            {% if invoice.due_amount <= 0 %}
+                <span style="font-weight: 700;">PAID</span>
+            {% else %}
+                <span style="font-weight: 700;">DUE</span>
+            {% endif %}
+        </div>
+        <div class="btn-group">
+            <form method="POST" action="{% url 'delete_invoice' invoice.id %}" onsubmit="return confirm('Are you sure you want to delete Invoice #{{ invoice.id }}? The stock will be returned to your inventory.');">
+                {% csrf_token %}
+                <button type="submit" class="btn" style="background:red; color:white; padding: 10px 10px; border:0;" title="Delete Invoice">
+                    <i class="fa-solid fa-trash-can"></i> Delete Invoice
+                </button>
+            </form>
+            <a href="{% url 'create_invoice' %}" class="btn btn-outline">Create New</a>
+            <a href="{% url 'invoice_list' %}" class="btn btn-outline">View All Invoices</a>
+            <a href="{% url 'edit_invoice' invoice.id %}" class="btn btn-outline">Edit</a>
+            <button onclick="window.print()" class="btn btn-primary">Print Invoice</button>
+        </div>
+    </div>
+
     <div class="invoice-sheet">
-        <div class="invoice-header">
-            <h1>Invoice</h1>
-            <div class="company-details">
-                <h2>Savior Pharmacy</h2>
-                <p>Dashpukur, Rajshahi</p>
-                <p>Phone: 01712996633</p>
+        <div class="header">
+            <div class="company-info">
+                <h2>{{ company_profile.company_name|default:"Company Name" }}</h2>
+                <p>{{ company_profile.address|default:"123 Business Street, City, Country" }}</p>
+                <p>Phone: {{ company_profile.phone|default:"N/A" }}</p>
+                {% if company_profile.email %}
+                    <p>Email: {{ company_profile.email }}</p>
+                {% endif %}
+            </div>
+            
+            <div class="invoice-title-section">
+                <h1>INVOICE</h1>
+                <div class="invoice-meta">
+                    <span>Invoice #:</span> <span>{{ invoice.id }}</span>
+                    <span>Date:</span> <span>{{ invoice.created_at|date:"M d, Y" }}</span>
+                    <span>Type:</span> <span>{{ invoice.invoice_type|upper }}</span>
+                </div>
             </div>
         </div>
 
-        <div class="invoice-meta">
-            <p>Date: {{ invoice.created_at|date:"Y-m-d h:i A" }}</p>
-            <p>Invoice #: {{ invoice.id }}<br/> <b>{{ invoice.invoice_type |title}} Invoice</b></p>
+        <div class="billing-row">
+            <div class="bill-to">
+                <h3>Billed To</h3>
+                {% if invoice.customer %}
+                    <p class="name">{{ invoice.customer.name }}</p>
+                    <p>{{ invoice.customer.address }}</p>
+                    <p>Phone: {{ invoice.customer.phone }}</p>
+                {% else %}
+                    <p class="name" style="font-style: italic; font-weight: normal;">Walk-in Customer</p>
+                {% endif %}
+            </div>
         </div>
 
-        <div class="customer-details">
-            <h3>Bill To:</h3>
-            {% if invoice.customer %}
-                <p>{{ invoice.customer.name }} - {{ invoice.customer.address }}</p>
-                <p>Phone: {{ invoice.customer.phone }}</p>
-            {% else %}
-                <p>Walk-in Customer</p>
-            {% endif %}
-        </div>
-        
-        <table id="invoice-items-table">
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th>SL</th>
-                    <th>Product</th>
-                    <th style="text-align: center;">Qty</th>
-                    <th style="text-align: right;">Price</th>
-                    <th style="text-align: right;">Subtotal</th>
+                    <th style="width: 5%">SL</th>
+                    <th style="width: 50%">Item Description</th>
+                    <th class="center" style="width: 10%">Qty</th>
+                    <th class="right" style="width: 15%">Rate</th>
+                    <th class="right" style="width: 20%">Amount</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in invoice.items.all %}
                 <tr>
-                    <td>{{ forloop.counter }}</td>
-                    <td>{{ item.product.name }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>{{ item.price|floatformat:0 }}</td>
-                    <td>{{ item.subtotal|floatformat:0 }}</td>
+                    <td style="color: var(--text-muted);">{{ forloop.counter }}</td>
+                    <td class="item-name">{{ item.product.name }}</td>
+                    <td class="center">{{ item.quantity }}</td>
+                    <td class="right">{{ item.price|floatformat:2 }}</td>
+                    <td class="right">{{ item.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="center" style="color: var(--text-muted); font-style: italic; padding: 20px;">No items found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <table class="summary-table">
-            <tr>
-                <th>Total Value (BDT):</th>
-                <td>{{ invoice.total_value|floatformat:0 }}</td>
-            </tr>
-            <tr>
-                <th>Discount ({{ invoice.discount_percent }}%):</th>
-                <td>{{ invoice.total_value|times:invoice.discount_percent|div:100|floatformat:2 }}</td>
-            </tr>
-            <tr>
-                <th>Payable Value:</th>
-                <td>{{ invoice.payable_value|floatformat:2 }}</td>
-            </tr>
-            <tr>
-                <th>Paid Amount:</th>
-                <td>{{ invoice.paid_amount|floatformat:2 }}</td>
-            </tr>
-            <tr>
-                <th>Due Amount:</th>
-                <td>{{ invoice.due_amount|floatformat:2 }}</td>
-            </tr>
-        </table>
-        <div style="margin-top: 50px;">
-         <h3 style="">Authorized Signature</h3>
+        <div class="summary-container">
+            <div class="summary-box">
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span>{{ invoice.total_value|floatformat:2 }}</span>
+                </div>
+                
+                {% if invoice.discount_percent > 0 %}
+                <div class="summary-row" style="color: var(--text-muted);">
+                    <span>Discount ({{ invoice.discount_percent|floatformat:0 }}%)</span>
+                    <span>- {{ invoice.discount_amount|floatformat:2 }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="summary-row total-row">
+                    <span>Total Payable</span>
+                    <span>{{ invoice.payable_value|floatformat:2 }}</span>
+                </div>
+                
+                <div class="summary-row">
+                    <span>Amount Paid</span>
+                    <span>{{ invoice.paid_amount|floatformat:2 }}</span>
+                </div>
+                
+                <div class="summary-row due-row">
+                    <span>Balance Due</span>
+                    <span>{{ invoice.due_amount|floatformat:2 }}</span>
+                </div>
+            </div>
         </div>
-        <div class="invoice-footer">
-            <p>Thank you!</p>
+
+        <div class="signatures">
+            <div class="sig-line">Customer Signature</div>
+            <div class="sig-line">Authorized Signature</div>
         </div>
-    </div>
 
-    <div class="no-print">
-        <button onclick="window.print()" class="print-button">Print Invoice</button>
-        <a href="/create/" class="print-button" style="margin-left: 10px; background-color: blue;">Create new invoice</a>
+        <div class="footer">Thank you for your business.</div>
     </div>
-
 </body>
 </html>

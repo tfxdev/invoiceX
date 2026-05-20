@@ -84,9 +84,7 @@ class StockRecord(models.Model):
                         self.product.qty -= self.qty
                     self.product.save()
             except StockRecord.DoesNotExist:
-                # Fallback for safety, though unlikely in normal update flow
                 pass
-
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -97,6 +95,7 @@ class StockRecord(models.Model):
             self.product.qty += self.qty
         self.product.save()
         super().delete(*args, **kwargs)
+        
     def __str__(self):
         return f"{self.product.name} / {self.stock_type} / {self.qty}"
 
@@ -117,6 +116,10 @@ class Invoice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @property
+    def discount_amount(self):
+        return self.total_value - self.payable_value
+
     def __str__(self):
         return f"Invoice #{self.id}"
 
@@ -135,3 +138,37 @@ class InvoiceItem(models.Model):
         if self.product:
             return f"{self.product.name} ({self.quantity})"
         return f"Deleted Product ({self.quantity})"
+    
+class PaymentRecord(models.Model):
+    TRANSACTION_TYPE = [
+        ('charge', 'Charge / Added to Due'),
+        ('payment', 'Payment Received')
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='ledger')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(choices=TRANSACTION_TYPE, max_length=20)
+    note = models.CharField(max_length=255, blank=True, null=True)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            # Automatically update the Customer's total due amount
+            if self.transaction_type == 'charge':
+                self.customer.due += self.amount
+            elif self.transaction_type == 'payment':
+                self.customer.due -= self.amount
+            self.customer.save()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Safely reverse the balance if a record is deleted
+        if self.transaction_type == 'charge':
+            self.customer.due -= self.amount
+        elif self.transaction_type == 'payment':
+            self.customer.due += self.amount
+        self.customer.save()
+        super().delete(*args, **kwargs)
+        
+    def __str__(self):
+        return f"{self.customer.name} - {self.transaction_type} - {self.amount}"

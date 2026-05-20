@@ -1,120 +1,462 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Invoice</title>
-    <link href="{% static '/css/bootstrap.min.css' %}" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'css/all.min.css' %}">
-    <link rel="stylesheet" href="{% static 'css/create_invoice_a4.css' %}">
-    <link href="{% static 'css/select2.min.css' %}" rel="stylesheet" />
-</head>
-<body>
-    <div class="invoice-sheet">
-        <div class="invoice-header bg-white pt-3 border rounded mb-3">
-            <h1><i class="fas fa-receipt me-2"></i>Create Invoice</h1>
+{% extends 'base.html' %} 
+{% block content %}
+
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+
+<style>
+    :root {
+        --pos-bg: #f3f4f6;
+        --pos-card: #ffffff;
+        --pos-border: #e5e7eb;
+        --pos-primary: #006a4e; 
+        --pos-primary-hover: #00533d;
+        --pos-danger: #f42a41; 
+        --pos-text-dark: #111827;
+        --pos-accent: #10b981;
+    }
+
+    .pos-container { height: calc(100vh - 60px); display: flex; flex-wrap: wrap; overflow: hidden; padding: 1rem; gap: 1rem; }
+    
+    .pos-left, .pos-right { 
+        background: var(--pos-card); 
+        border-radius: 12px; 
+        border: 1px solid var(--pos-border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .pos-left { flex: 1 1 55%; height: 100%; }
+    
+    .ai-zone { padding: 20px; background: rgba(0, 106, 78, 0.03); border-bottom: 1px solid var(--pos-border); text-align: center; }
+    .scanner-zone { border-bottom: 1px solid var(--pos-border); padding: 15px 20px; background: #f9fafb; display: flex; align-items: center;}
+    
+    .product-grid { padding: 20px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; align-content: start; }
+    .product-card { border: 1px solid var(--pos-border); border-radius: 8px; padding: 15px; cursor: pointer; transition: all 0.1s; background: white; height: 100%; }
+    .product-card:active { transform: scale(0.97); }
+    .product-card h6 { margin: 0 0 5px 0; font-size: 14px; font-weight: 600; color: var(--pos-text-dark); }
+    .product-card:hover { border-color: var(--pos-primary); box-shadow: 0 4px 6px rgba(0,106,78,0.1); }
+
+    .pos-right { flex: 1 1 40%; height: 100%; min-width: 350px; }
+    .cart-header { padding: 15px; border-bottom: 1px solid var(--pos-border); background: #f9fafb; }
+    .cart-items { flex: 1; overflow-y: auto; padding: 15px; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px dashed var(--pos-border); }
+    
+    .qty-controls { display: flex; align-items: center; }
+    .qty-btn { width: 30px; height: 30px; border-radius: 4px; border: 1px solid var(--pos-border); background: white; cursor: pointer; color: var(--pos-text-dark);}
+    .qty-input { width: 50px; text-align: center; border: 1px solid var(--pos-border); border-radius: 4px; padding: 4px; height: 30px; -moz-appearance: textfield; }
+    .qty-input::-webkit-outer-spin-button, .qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    
+    .cart-summary { padding: 20px; border-top: 1px solid var(--pos-border); background: white; }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; align-items: center; }
+    .summary-input { width: 100px; text-align: right; border: 1px solid var(--pos-border); border-radius: 4px; padding: 4px 8px; }
+    
+    .checkout-btn { width: 100%; padding: 15px; background: var(--pos-primary); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin-top: 15px; transition: 0.2s;}
+    .checkout-btn:hover { background: var(--pos-primary-hover); }
+
+    /* AI Scanner Animation */
+    #ai-loader {
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(255,255,255,0.95); display: none; flex-direction: column; justify-content: center; align-items: center;
+        z-index: 1000; backdrop-filter: blur(4px);
+    }
+    .scanner-box { width: 120px; height: 160px; border: 2px dashed var(--pos-primary); border-radius: 8px; position: relative; overflow: hidden; background: rgba(0, 106, 78, 0.05); }
+    .scanner-laser {
+        position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: var(--pos-accent); box-shadow: 0 0 10px var(--pos-accent), 0 0 20px var(--pos-accent);
+        animation: scan 1.5s infinite alternate ease-in-out;
+    }
+    @keyframes scan { 0% { top: 0%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+    @media (max-width: 992px) {
+        .pos-container { height: auto; overflow: visible; }
+        .pos-left, .pos-right { height: 600px; flex: 1 1 100%; }
+    }
+</style>
+
+<div class="container-fluid pos-container position-relative">
+    
+    <div id="ai-loader"></div>
+
+    <div class="pos-left shadow-sm">
+        
+        <div class="ai-zone">
+            <h5 class="fw-bold mb-2 text-dark"><i class="fa-solid fa-wand-magic-sparkles text-warning me-2"></i>AI Invoice Scanner</h5>
+            <p class="text-muted small mb-3">Upload a handwritten or printed invoice. AI will instantly build your cart.</p>
+            <button class="btn w-100 py-3 rounded-3 shadow-sm text-white fw-bold" style="background-color: var(--pos-primary);" onclick="document.getElementById('ai-upload').click()">
+                <i class="fa-solid fa-camera fa-lg me-2"></i> Scan Document(s)
+            </button>
+            <input type="file" id="ai-upload" style="display: none;" accept="image/*" multiple onchange="processAIAttachment(this)">
         </div>
 
-        <div class="row mb-4">
-            <div class="col-8">
-                <div>
-                    <input type="radio" name="invoice_type" value="sale" id="sale_invoice" checked>
-                    <label for="sale_invoice">Sale</label> &nbsp;
-                    <input type="radio" name="invoice_type" value="purchase" id="purchase_invoice">
-                    <label for="purchase_invoice">Purchase</label>
-                </div>
-                <br/>
-                <label for="customer-select" class="form-label">Bill To</label>
-                <select class="form-select" id="customer-select">
-                    <option value="">Walk-in Customer</option>
-                    {% for customer in customers %}
-                    <option value="{{ customer.id }}">{{ customer.name }} - {{ customer.phone }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-4 text-end">
-                <p class="mb-1"><strong>Date:</strong> {% now "Y-m-d" %}</p>
-                <p class="mb-0"><strong>Invoice #:</strong> New</p>
-            </div>
-        </div>
-
-        <table class="table table-bordered" id="invoice-items-table">
-            <thead class="table-light">
-                <tr>
-                    <th style="width: 40%;">Product</th>
-                    <th style="width: 15%;">Quantity</th>
-                    <th style="width: 20%;">Price</th>
-                    <th style="width: 20%;">Subtotal</th>
-                    <th class="text-center" style="width: 5%;"></th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- JS will populate this -->
-            </tbody>
-        </table>
-
-        <button class="btn btn-dark btn-sm" id="add-row-btn"><i class="fas fa-plus me-1"></i> Add Item</button>
-
-        <div class="row justify-content-end mt-4">
-            <div class="col-lg-6">
-                <div class="summary-section">
-                    <div class="row mb-2 align-items-center">
-                        <div class="col-6"><label class="col-form-label text-end">Total:</label></div>
-                        <div class="col-6"><p class="form-control-plaintext text-end mb-0" id="total-value">BDT 0.00</p></div>
-                    </div>
-                    <div class="row mb-2 align-items-center">
-                        <div class="col-6"><label for="discount-percent" class="col-form-label text-end">Discount (%):</label></div>
-                        <div class="col-6"><input type="number" id="discount-percent" class="form-control form-control-sm text-end" value="0" min="0"></div>
-                    </div>
-                    <div class="row mb-2 align-items-center">
-                        <div class="col-6"><label class="col-form-label text-end">Payable:</label></div>
-                        <div class="col-6"><p class="form-control-plaintext text-end mb-0" id="payable-value">BDT 0.00</p></div>
-                    </div>
-                    <div class="row mb-2 align-items-center">
-                        <div class="col-6"><label for="paid-amount" class="col-form-label text-end">Paid Amount:</label></div>
-                        <div class="col-6"><input type="number" id="paid-amount" class="form-control form-control-sm text-end" value="0" min="0"></div>
-                    </div>
-                    <div class="row pt-2 mt-2 align-items-center">
-                        <div class="col-6"><label class="col-form-label text-end fw-bold">Due:</label></div>
-                        <div class="col-6"><p class="form-control-plaintext text-end mb-0 fw-bold" id="due-amount">BDT 0.00</p></div>
-                    </div>
-                    <div class="row mt-2 align-items-center">
-                        <div class="col-6"><label for="auth-signature" class="col-form-label text-end">Signature:</label></div>
-                        <div class="col-6"><input type="text" id="auth-signature" class="form-control form-control-sm text-end"></div>
-                    </div>
-                    <div class="row mt-5">
-                        <button id="save-invoice-btn" class="btn btn-success p-2"><i class="fas fa-save me-2"></i>Save & Print Invoice</button>
-                    </div>
-                </div>
+        <div class="scanner-zone">
+            <div class="input-group flex-grow-1 shadow-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input type="text" id="productSearch" class="form-control border-start-0 ps-0" placeholder="Search products..." onkeyup="filterProducts(this.value)">
+                <button class="btn btn-outline-secondary border-start-0 bg-white" type="button" onclick="clearSearch()"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
         
-        <hr class="mt-4">
-
-
+        <div class="product-grid" id="productGrid"></div>
     </div>
 
-    <!-- Hidden template for a new row -->
-    <template id="invoice-row-template">
-        <tr>
-            <td>
-                <select class="form-control product-select">
-                    <option value="">Select a Product</option>
-                    {% for product in products %}
-                    <option value="{{ product.id }}" data-price="{{ product.price }}">{{ product.name }}</option>
-                    {% endfor %}
-                </select>
-            </td>
-            <td><input type="number" class="form-control quantity" value="1" min="1"></td>
-            <td><input type="number" class="form-control price" step="0.01"></td>
-            <td class="subtotal text-end">BDT 0.00</td>
-            <td class="text-center"><button class="btn btn-danger btn-sm delete-row-btn"><i class="fas fa-times"></i></button></td>
-        </tr>
-    </template>
+    <div class="pos-right shadow-sm">
+        <div class="cart-header">
+            <div class="row g-2">
+                <div class="col-12 col-md-4">
+                    <select id="invoice_type" class="form-select fw-bold text-dark">
+                        <option value="sale">Sale Invoice</option>
+                        <option value="purchase">Purchase Bill</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-8">
+                    <select id="customer_id" placeholder="Select or search customer...">
+                        <option value="">Walk-in Customer</option>
+                        {% for customer in customers %}
+                            <option value="{{ customer.id }}">{{ customer.name }} ({{ customer.phone }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
 
-    <script src="{% static 'js/jquery.min.js' %}"></script>
-    <script src="{% static 'js/select2.min.js' %}"></script>
-    <script src="{% static 'js/invoice_a4.js' %}"></script>
-</body>
-</html>
+        <div class="cart-items" id="cartItems"></div>
+
+        <div class="cart-summary">
+            <div class="summary-row text-muted fw-bold">
+                <span>Subtotal</span>
+                <span id="display_subtotal">0.00</span>
+            </div>
+            <div class="summary-row align-items-center">
+                <span class="text-muted">Discount (%)</span>
+                <div class="text-end">
+                    <input type="number" id="input_discount" class="summary-input d-inline-block" value="0" min="0" max="100" oninput="updateCart()">
+                    <small id="display_discount_flat" class="text-danger d-block mt-1 fw-bold">- 0.00 ৳</small>
+                </div>
+            </div>
+            <div class="summary-row fs-5 fw-bold text-dark border-top pt-2 mt-2">
+                <span>Payable Value</span>
+                <span id="display_payable">0.00</span>
+            </div>
+            <div class="summary-row mt-3">
+                <span class="text-muted">Paid Amount</span>
+                <input type="number" id="input_paid" class="summary-input" value="0" min="0" oninput="updateCart()">
+            </div>
+            <div class="summary-row fw-bold" style="color: var(--pos-danger);">
+                <span>Balance Due</span>
+                <span id="display_due">0.00</span>
+            </div>
+            
+            <button class="checkout-btn" onclick="saveAndPrint()">
+                <i class="fa-solid fa-print me-2"></i> Save & Print Invoice
+            </button>
+        </div>
+    </div>
+</div>
+
+<script id="db-products" type="application/json">
+    {{ products_json|safe }}
+</script>
+<script id="existing-invoice-data" type="application/json">
+    {{ existing_invoice|safe }}
+</script>
+
+{% csrf_token %}
+
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+<script>
+    const dbProducts = JSON.parse(document.getElementById('db-products').textContent);
+    let cart = [];
+
+    const existingInvoiceData = JSON.parse(document.getElementById('existing-invoice-data').textContent);
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Initialize Dropdown
+            const customerSelect = new TomSelect("#customer_id",{ 
+            create: true, 
+            sortField: { field: "text", direction: "asc" },
+            render: {
+                option_create: function(data, escape) {
+                    return '<div class="create text-success fw-bold">+ Add new customer: <strong>' + escape(data.input) + '</strong></div>';
+                }
+            }
+        });
+
+            // If Editing, Pre-fill the Form!
+            if (existingInvoiceData) {
+                document.getElementById('invoice_type').value = existingInvoiceData.invoice_type;
+                if (existingInvoiceData.customer_id) customerSelect.setValue(existingInvoiceData.customer_id);
+                document.getElementById('input_discount').value = existingInvoiceData.discount_percent;
+                document.getElementById('input_paid').value = existingInvoiceData.paid_amount;
+                
+                // Change button UI to indicate updating
+                const btn = document.querySelector('.checkout-btn');
+                btn.innerHTML = `<i class="fa-solid fa-arrows-rotate me-2"></i> Update & Print Invoice`;
+                btn.classList.replace('btn-bd-green', 'btn-warning');
+                
+                // Load items into cart
+                existingInvoiceData.items.forEach(item => {
+                    addToCart(item.product_id, item.name, item.price, item.quantity);
+                });
+            }
+
+            renderProductGrid();
+            renderCart();
+        });
+    function getCartQty(productId) {
+        const item = cart.find(i => i.product_id === productId);
+        return item ? item.quantity : 0;
+    }
+    
+    function renderProductGrid(filterQuery = '') {
+        const grid = document.getElementById('productGrid');
+        grid.innerHTML = '';
+        const lowerQuery = filterQuery.toLowerCase();
+
+        dbProducts.forEach(p => {
+            if (p.name.toLowerCase().includes(lowerQuery)) {
+                const inCartQty = getCartQty(p.id);
+                const availableStock = p.qty - inCartQty;
+
+                const div = document.createElement('div');
+                div.className = 'product-card-wrapper'; 
+                div.innerHTML = `
+                    <div class="product-card" onclick="addToCart(${p.id}, '${p.name.replace(/'/g, "\\'")}', ${p.price})">
+                        <h6>${p.name}</h6>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <span class="fw-bold" style="color: var(--pos-primary);">${p.price} ৳</span>
+                            <span class="badge ${availableStock <= 0 ? 'bg-danger' : 'bg-light text-dark border'}">Stock: ${availableStock}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(div);
+            }
+        });
+    }
+
+    function filterProducts(query) { renderProductGrid(query); }
+    function clearSearch() { document.getElementById('productSearch').value = ''; renderProductGrid(''); }
+    function syncGrid() { renderProductGrid(document.getElementById('productSearch').value); }
+
+    function renderCart() {
+        const container = document.getElementById('cartItems');
+        if (cart.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted mt-5 pt-5">
+                    <i class="fa-solid fa-cart-shopping fs-1 mb-3 opacity-25 text-dark"></i>
+                    <p>Cart is empty.<br>Search or click products to add.</p>
+                </div>`;
+            updateTotals();
+            return;
+        }
+
+        container.innerHTML = '';
+        cart.forEach((item, index) => {
+            const dbProd = dbProducts.find(p => p.id === item.product_id);
+            const stockWarning = (dbProd && item.quantity > dbProd.qty) 
+                ? `<div class="text-danger mt-1" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation"></i> Over stock limit</div>` : '';
+
+            const div = document.createElement('div');
+            div.className = 'cart-item';
+            div.innerHTML = `
+                <div style="flex: 1; padding-right: 10px;">
+                    <h6 class="mb-0 fw-bold text-dark" style="font-size: 0.9rem;">${item.name}</h6>
+                    <small class="text-muted">${item.price.toFixed(2)} ৳</small>
+                    ${stockWarning}
+                </div>
+                <div class="qty-controls mx-2">
+                    <button class="qty-btn" onclick="updateItemQty(${index}, -1)"><i class="fa-solid fa-minus fs-6"></i></button>
+                    <input type="number" class="qty-input mx-1 fw-bold text-dark" value="${item.quantity}" min="1" onchange="setCustomQty(${index}, this.value)">
+                    <button class="qty-btn" onclick="updateItemQty(${index}, 1)"><i class="fa-solid fa-plus fs-6"></i></button>
+                </div>
+                <div class="text-end" style="width: 70px;">
+                    <div class="fw-bold text-dark">${(item.price * item.quantity).toFixed(2)}</div>
+                </div>
+                <button class="btn btn-link text-danger p-0 ms-2" onclick="removeFromCart(${index})"><i class="fa-solid fa-xmark fs-5"></i></button>
+            `;
+            container.appendChild(div);
+        });
+        
+        updateTotals();
+    }
+
+    function addToCart(id, name, price, qty = 1) {
+            // Find existing item by ID, or by exact Name (if the AI found a product not in your DB)
+            const existing = cart.find(i => 
+                (id !== null && i.product_id === id) || 
+                (id === null && i.name.toLowerCase() === name.toLowerCase())
+            );
+            
+            if (existing) { 
+                existing.quantity += parseInt(qty); 
+            } else { 
+                cart.push({ product_id: id, name: name, price: price, quantity: parseInt(qty) }); 
+            }
+            
+            // We only call renderCart and syncGrid if this was a manual click (qty === 1)
+            // This prevents the screen from flickering 50 times when the AI drops a massive list.
+            if (qty === 1) {
+                renderCart();
+                syncGrid();
+            }
+        }
+
+    function updateItemQty(index, delta) {
+        cart[index].quantity += delta;
+        if (cart[index].quantity <= 0) { cart.splice(index, 1); }
+        renderCart();
+        syncGrid();
+    }
+
+    function setCustomQty(index, val) {
+        let newQty = parseInt(val);
+        if (isNaN(newQty) || newQty < 1) newQty = 1; 
+        cart[index].quantity = newQty;
+        renderCart();
+        syncGrid();
+    }
+
+    function removeFromCart(index) { cart.splice(index, 1); renderCart(); syncGrid(); }
+
+    function updateTotals() {
+        let subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const discountPct = parseFloat(document.getElementById('input_discount').value) || 0;
+        const discountAmt = subtotal * (discountPct / 100);
+        const payable = subtotal - discountAmt;
+        let paid = parseFloat(document.getElementById('input_paid').value) || 0;
+        const due = payable - paid;
+
+        document.getElementById('display_subtotal').innerText = subtotal.toFixed(2);
+        document.getElementById('display_discount_flat').innerText = `- ${discountAmt.toFixed(2)} ৳`;
+        document.getElementById('display_payable').innerText = payable.toFixed(2);
+        document.getElementById('display_due').innerText = due.toFixed(2);
+    }
+    
+    function updateCart() { updateTotals(); }
+
+async function processAIAttachment(input) {
+        const files = Array.from(input.files);
+        if (files.length === 0) return;
+
+        const loader = document.getElementById('ai-loader');
+        loader.innerHTML = `
+            <div class="scanner-box"><div class="scanner-laser"></div></div>
+            <h4 class="mt-4 fw-bold text-dark">Scanning ${files.length} Document${files.length > 1 ? 's' : ''}...</h4>
+            <p class="text-muted">Merging data intelligently. Please wait.</p>
+        `;
+        loader.style.display = 'flex';
+
+        try {
+            const base64Promises = files.map(file => {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve({
+                        data: reader.result.split(',')[1],
+                        media_type: file.type
+                    });
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            const imagesData = await Promise.all(base64Promises);
+            const payload = { images: imagesData };
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            const response = await fetch("{% url 'scan_invoice_api' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                document.getElementById('invoice_type').value = data.invoice_type || 'sale';
+                if (data.customer_id) { document.getElementById('customer_id').tomselect.setValue(data.customer_id); }
+                document.getElementById('input_discount').value = data.discount_percent || 0;
+                
+                // --- NEW SMART CUSTOMER MAPPING ---
+                const customerSelect = document.getElementById('customer_id').tomselect;
+                if (data.customer_id) { 
+                    // Found an exact match in the DB
+                    customerSelect.setValue(data.customer_id); 
+                } else if (data.customer_name) {
+                    // Brand new handwritten name! Add it to the UI automatically.
+                    customerSelect.addOption({value: data.customer_name, text: data.customer_name + ' (New Customer)'});
+                    customerSelect.setValue(data.customer_name);
+                }
+                
+                // Clear the cart before adding the AI's new items
+                cart = [];
+                
+                // Loop through the AI items and use our smart addToCart function
+                data.items.forEach(ai_item => {
+                    addToCart(
+                        ai_item.product_id,
+                        ai_item.product_name,
+                        ai_item.product_price || ai_item.price || 0,
+                        ai_item.quantity // Pass the AI's extracted quantity
+                    );
+                });
+                
+                if(data.paid_amount) { document.getElementById('input_paid').value = data.paid_amount; }
+                
+                // Render everything at once at the very end
+                renderCart();
+                syncGrid();
+                
+            } else { alert("AI Extraction Failed: " + data.message); }
+        } catch (error) {
+            console.error(error);
+            alert("Network error occurred during AI scanning.");
+        } finally {
+            loader.style.display = 'none';
+            input.value = ''; 
+        }
+    }
+
+    async function saveAndPrint() {
+        if (cart.length === 0) return alert("Cart is empty! Please add products.");
+
+        const subtotal = parseFloat(document.getElementById('display_subtotal').innerText);
+        const payable = parseFloat(document.getElementById('display_payable').innerText);
+
+        const formattedItems = cart.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price,
+            subtotal: item.price * item.quantity
+        }));
+
+        const payload = {
+            invoice_id: existingInvoiceData ? existingInvoiceData.id : null,
+            invoice_type: document.getElementById('invoice_type').value,
+            customer_id: document.getElementById('customer_id').value,
+            total_value: subtotal,
+            discount_percent: document.getElementById('input_discount').value || 0,
+            payable_value: payable,
+            paid_amount: document.getElementById('input_paid').value || 0,
+            due_amount: document.getElementById('display_due').innerText,
+            items: formattedItems
+        };
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        try {
+            const response = await fetch("{% url 'save_invoice_api' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                window.location.href = `/invoice/${data.invoice_id}/`;
+            } else {
+                alert("Error saving invoice: " + data.message);
+            }
+        } catch (error) { alert("Failed to connect to the server."); }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% block title %}Inventory Management - KOT POS{% endblock %}
+
+{% block content %}
+<style>
+    .inventory-card { background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+    .table-hover tbody tr:hover { background-color: rgba(0, 106, 78, 0.03); }
+    .action-btn { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; transition: 0.2s; cursor: pointer; border: none; background: transparent;}
+    .action-btn:hover { background-color: #f3f4f6; }
+    .search-input:focus { box-shadow: 0 0 0 0.25rem rgba(0, 106, 78, 0.25); border-color: #006a4e; }
+    
+    .stock-badge { min-width: 60px; display: inline-block; text-align: center; }
+</style>
+
+<div class="container mt-4 mb-5">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">Inventory</h2>
+            <p class="text-muted mb-0">Manage your product catalog and stock levels.</p>
+        </div>
+        <button class="btn text-white fw-bold shadow-sm px-4 py-2" style="background-color: #006a4e; border-radius: 8px;" onclick="openProductModal('add')">
+            <i class="fa-solid fa-box-open me-2"></i> Add Product
+        </button>
+    </div>
+
+    <div class="inventory-card overflow-hidden">
+        
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fa-solid fa-magnifying-glass"></i></span>
+                <input type="text" id="inventorySearch" class="form-control border-start-0 search-input" placeholder="Search product name..." onkeyup="filterTable()">
+            </div>
+            <span class="text-muted small fw-bold"><span id="rowCount">{{ products|length }}</span> Items</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="inventoryTable">
+                <thead class="table-light text-muted small text-uppercase" style="letter-spacing: 0.5px;">
+                    <tr>
+                        <th class="ps-4">Product Name</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-center">Current Stock</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in products %}
+                    <tr data-search="{{ p.name|lower }}">
+                        <td class="ps-4 fw-bold text-dark">{{ p.name }}</td>
+                        <td class="text-end fw-bold">{{ p.price|floatformat:2 }} ৳</td>
+                        <td class="text-center">
+                            {% if p.qty <= 0 %}
+                                <span class="badge bg-danger stock-badge py-2">Out of Stock ({{ p.qty }})</span>
+                            {% elif p.qty <= 5 %}
+                                <span class="badge bg-warning text-dark stock-badge py-2">Low ({{ p.qty }})</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border stock-badge py-2">{{ p.qty }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="action-btn text-primary me-1" title="Adjust Stock" onclick="openStockModal('{{ p.id }}', '{{ p.name|escapejs }}', '{{ p.qty }}')">
+                                <i class="fa-solid fa-boxes-packing"></i>
+                            </button>
+                            <button class="action-btn text-info me-1" title="Stock History" onclick="openHistoryModal('{{ p.id }}')">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                            </button>
+                            <button class="action-btn text-warning" title="Edit Name/Price" onclick="openProductModal('edit', '{{ p.id }}', '{{ p.name|escapejs }}', '{{ p.price }}')">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            
+                            <form method="POST" action="{% url 'delete_product' p.id %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete {{ p.name }}? This will remove it from the database.');">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn text-danger" title="Delete Product">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-boxes-stacked fs-1 mb-3 opacity-25 text-dark"></i>
+                            <h5>Inventory is empty</h5>
+                            <p>You haven't added any products yet.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold" id="productModalLabel">Add Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'product_list' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" id="productAction" value="add">
+          <input type="hidden" name="product_id" id="formProductId" value="">
+          
+          <div class="modal-body p-4">
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Product Name <span class="text-danger">*</span></label>
+                  <input type="text" name="name" id="formName" class="form-control" required>
+              </div>
+              <div class="row mb-3">
+                  <div class="col-6">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Price (৳) <span class="text-danger">*</span></label>
+                      <input type="number" step="0.01" name="price" id="formPrice" class="form-control" required>
+                  </div>
+                  <div class="col-6" id="qtyInputGroup">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Opening Stock</label>
+                      <input type="number" name="qty" id="formQty" class="form-control" value="0">
+                  </div>
+              </div>
+          </div>
+          <div class="modal-footer bg-light border-top-0">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn text-white fw-bold" style="background-color: #006a4e;">Save Product</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="stockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-boxes-packing me-2 text-primary"></i>Adjust Stock</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="{% url 'product_list' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="adjust_stock">
+          <input type="hidden" name="product_id" id="stockProductId" value="">
+          
+          <div class="modal-body p-4">
+              <p class="mb-4">Updating stock for: <strong id="stockProductName" class="text-dark fs-5"></strong><br>
+              <span class="text-muted small">Current Stock: <span id="stockCurrentQty" class="fw-bold"></span></span></p>
+              
+              <div class="row mb-3">
+                  <div class="col-6">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Action</label>
+                      <select name="adj_type" class="form-select fw-bold">
+                          <option value="add" class="text-success">Add Stock (+)</option>
+                          <option value="reduce" class="text-danger">Reduce Stock (-)</option>
+                      </select>
+                  </div>
+                  <div class="col-6">
+                      <label class="form-label text-muted fw-bold small text-uppercase">Quantity</label>
+                      <input type="number" name="adj_qty" class="form-control" min="1" required placeholder="e.g. 50">
+                  </div>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted fw-bold small text-uppercase">Reason / Note</label>
+                  <input type="text" name="note" class="form-control" placeholder="e.g. New Shipment arrived" required>
+              </div>
+          </div>
+          <div class="modal-footer bg-light border-top-0">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary fw-bold">Confirm Adjustment</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="historyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fw-bold"><i class="fa-solid fa-clock-rotate-left me-2 text-info"></i>Audit Log: <span id="historyProductName" class="text-dark"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+          <div id="historyLoading" class="text-center p-5 text-muted">
+              <div class="spinner-border text-info mb-3" role="status"></div>
+              <p>Fetching stock records...</p>
+          </div>
+          <table class="table table-hover align-middle mb-0" id="historyTable" style="display: none;">
+              <thead class="table-light text-muted small text-uppercase">
+                  <tr>
+                      <th class="ps-4">Date</th>
+                      <th class="text-center">Qty</th>
+                      <th class="pe-4">Note / Reason</th>
+                  </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                  </tbody>
+          </table>
+      </div>
+      <div class="modal-footer bg-light border-top-0">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+    function filterTable() {
+        const input = document.getElementById("inventorySearch").value.toLowerCase();
+        const rows = document.querySelectorAll("#inventoryTable tbody tr");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            if (row.cells.length === 1) return; 
+            const searchData = row.getAttribute('data-search');
+            if (searchData.includes(input)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+        document.getElementById("rowCount").innerText = visibleCount;
+    }
+
+    function openProductModal(action, id='', name='', price='') {
+        document.getElementById('productAction').value = action;
+        document.getElementById('productModalLabel').innerText = action === 'add' ? 'Add New Product' : 'Edit Product Details';
+        
+        document.getElementById('formProductId').value = id;
+        document.getElementById('formName').value = name;
+        document.getElementById('formPrice').value = price;
+        
+        // Hide initial qty field if editing (force them to use the safe stock adjustment tool)
+        document.getElementById('qtyInputGroup').style.display = action === 'add' ? 'block' : 'none';
+        
+        const modal = new bootstrap.Modal(document.getElementById('productModal'));
+        modal.show();
+    }
+    
+    function openStockModal(id, name, currentQty) {
+        document.getElementById('stockProductId').value = id;
+        document.getElementById('stockProductName').innerText = name;
+        document.getElementById('stockCurrentQty').innerText = currentQty;
+        
+        const modal = new bootstrap.Modal(document.getElementById('stockModal'));
+        modal.show();
+    }
+    async function openHistoryModal(productId) {
+        // Show modal and loading state
+        document.getElementById('historyProductName').innerText = "Loading...";
+        document.getElementById('historyTableBody').innerHTML = '';
+        document.getElementById('historyLoading').style.display = 'block';
+        document.getElementById('historyTable').style.display = 'none';
+        
+        const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+        modal.show();
+
+        try {
+            const response = await fetch(`/api/product/${productId}/history/`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                document.getElementById('historyProductName').innerText = data.product_name;
+                
+                if (data.history.length === 0) {
+                    document.getElementById('historyTableBody').innerHTML = `
+                        <tr><td colspan="3" class="text-center p-4 text-muted">No stock history found.</td></tr>`;
+                } else {
+                    let rowsHtml = '';
+                    data.history.forEach(record => {
+                        // 'purchase' adds stock, 'sale' removes stock
+                        const isAdd = record.type === 'purchase';
+                        const colorClass = isAdd ? 'text-success' : 'text-danger';
+                        const sign = isAdd ? '+' : '-';
+                        
+                        rowsHtml += `
+                            <tr>
+                                <td class="ps-4" style="font-size: 0.85rem;"><span class="text-dark fw-bold">${record.date.split(' - ')[0]}</span><br><span class="text-muted">${record.date.split(' - ')[1]}</span></td>
+                                <td class="text-center fw-bold ${colorClass} fs-6">${sign}${record.qty}</td>
+                                <td class="pe-4 text-muted small">${record.note}</td>
+                            </tr>
+                        `;
+                    });
+                    document.getElementById('historyTableBody').innerHTML = rowsHtml;
+                }
+                
+                // Hide loader, show table
+                document.getElementById('historyLoading').style.display = 'none';
+                document.getElementById('historyTable').style.display = 'table';
+            }
+        } catch (error) {
+            alert("Failed to fetch stock history.");
+            modal.hide();
+        }
+    }
+</script>
+{% endblock %}

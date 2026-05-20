@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - KOT POS{% endblock %}
+
+{% block content %}
+<style>
+    .metric-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        transition: transform 0.2s;
+    }
+    .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 12px rgba(0,0,0,0.05); }
+    
+    .icon-box {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-right: 15px;
+    }
+    
+    .metric-value { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+    .metric-label { font-size: 0.85rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+    
+    .dashboard-panel {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        height: 100%;
+    }
+    .panel-header { padding: 15px 20px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+    
+    .table-hover tbody tr:hover { background-color: rgba(0, 106, 78, 0.03); }
+</style>
+
+<div class="container mt-4 mb-5">
+    
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Business Overview</h2>
+            <p class="text-muted mb-0">Welcome back, {{ user.username|title }}. Here is what's happening today.</p>
+        </div>
+        <a href="{% url 'create_invoice' %}" class="btn text-white fw-bold shadow-sm px-4 py-2" style="background-color: #006a4e; border-radius: 8px;">
+            <i class="fa-solid fa-plus me-2"></i> Quick Invoice
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-success bg-opacity-10 text-success"><i class="fa-solid fa-bangladeshi-taka-sign"></i></div>
+                <div>
+                    <p class="metric-label">Today's Revenue</p>
+                    <p class="metric-value">{{ today_revenue|floatformat:2 }} ৳</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="fa-solid fa-file-invoice"></i></div>
+                <div>
+                    <p class="metric-label">Total Invoices</p>
+                    <p class="metric-value">{{ total_invoices_count }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-danger bg-opacity-10 text-danger"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div>
+                    <p class="metric-label">Market Outstanding</p>
+                    <p class="metric-value">{{ total_due|floatformat:2 }} ৳</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-warning bg-opacity-10 text-warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div>
+                    <p class="metric-label">Low Stock Items</p>
+                    <p class="metric-value {% if low_stock_count > 0 %}text-danger{% endif %}">{{ low_stock_count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Recent Transactions</h5>
+                    <a href="{% url 'invoice_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
+                </div>
+                <div class="table-responsive p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Inv #</th>
+                                <th>Customer</th>
+                                <th>Type</th>
+                                <th class="text-end pe-4">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in recent_invoices %}
+                            <tr>
+                                <td class="ps-4 fw-bold"><a href="{% url 'invoice_view' inv.id %}" class="text-decoration-none" style="color: #006a4e;">#{{ inv.id }}</a></td>
+                                <td class="text-dark">{{ inv.customer.name|default:"<span class='text-muted fst-italic'>Walk-in</span>"|safe }}</td>
+                                <td>
+                                    {% if inv.invoice_type == 'sale' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">SALE</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2">PURCHASE</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4 fw-bold">{{ inv.payable_value|floatformat:2 }} ৳</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent transactions.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-boxes-packing me-2 text-danger"></i>Restock Required</h5>
+                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-outline-secondary">Inventory</a>
+                </div>
+                <div class="p-3">
+                    {% if low_stock_products %}
+                        <div class="list-group list-group-flush">
+                            {% for product in low_stock_products %}
+                            <div class="list-group-item px-2 py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-dark">{{ product.name }}</h6>
+                                    <small class="text-muted">Price: {{ product.price|floatformat:2 }} ৳</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge rounded-pill {% if product.qty <= 0 %}bg-danger{% else %}bg-warning text-dark{% endif %} px-3 py-2 fs-6">
+                                        {{ product.qty }} left
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-check-circle fs-1 mb-3 text-success opacity-50"></i>
+                            <p class="mb-0">All products are sufficiently stocked!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

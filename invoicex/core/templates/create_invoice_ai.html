@@ -1,0 +1,299 @@
+{% extends 'base.html' %} {% block content %}
+
+<style>
+    /* Bangladeshi Color Palette */
+    :root {
+        --bd-green: #006a4e;
+        --bd-red: #f42a41;
+        --light-bg: #f8f9fa;
+    }
+    
+    body { background-color: var(--light-bg); }
+    
+    .text-bd-green { color: var(--bd-green) !important; }
+    .bg-bd-green { background-color: var(--bd-green) !important; color: white; }
+    
+    .btn-bd-green { background-color: var(--bd-green); color: white; border: none; border-radius: 8px; }
+    .btn-bd-green:hover { background-color: #00533d; color: white; }
+    
+    .btn-bd-red { background-color: var(--bd-red); color: white; border: none; border-radius: 8px; }
+    .btn-bd-red:hover { background-color: #d81e33; color: white; }
+
+    .invoice-card {
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border: none;
+    }
+
+    /* Make inputs look clean and modern */
+    .form-control, .form-select {
+        border-radius: 8px;
+        border: 1px solid #ced4da;
+    }
+    .form-control:focus, .form-select:focus {
+        border-color: var(--bd-green);
+        box-shadow: 0 0 0 0.25rem rgba(0, 106, 78, 0.25);
+    }
+
+    /* Print Specific Styles */
+    @media print {
+        body { background-color: white !important; }
+        .no-print { display: none !important; } /* Hides buttons and UI during print */
+        .invoice-card { box-shadow: none; border: none; padding: 0 !important; margin: 0 !important; }
+        .container { width: 100% !important; max-width: 100% !important; }
+        /* Remove input borders for a clean printed document */
+        input, select { border: none !important; background: transparent !important; appearance: none; -webkit-appearance: none; }
+    }
+</style>
+
+<div class="container mt-4 mb-5 pb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+        <h3 class="text-bd-green fw-bold">Create Invoice</h3>
+        <button class="btn btn-outline-success border-2 rounded-pill px-3" onclick="document.getElementById('ai-upload').click()">
+            <i class="fas fa-camera"></i> Scan with AI
+        </button>
+        <input type="file" id="ai-upload" style="display: none;" accept="image/*" onchange="handleAIScan(this)">
+    </div>
+
+    <div class="card invoice-card p-3 p-md-4">
+        {% csrf_token %}
+        
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+                <label class="form-label text-muted small fw-bold text-uppercase">Invoice Type</label>
+                <select id="invoice_type" class="form-select fw-bold text-bd-green">
+                    <option value="sale">Sale (Out)</option>
+                    <option value="purchase">Purchase (In)</option>
+                </select>
+            </div>
+            <div class="col-6 col-md-4">
+                <label class="form-label text-muted small fw-bold text-uppercase">Customer/Supplier</label>
+                <select id="customer_id" class="form-select">
+                    <option value="">-- Select --</option>
+                    {% for customer in customers %}
+                        <option value="{{ customer.id }}">{{ customer.name }}</option>
+                    {% endform %}
+                </select>
+            </div>
+        </div>
+
+        <hr class="mb-4 text-muted">
+
+        <div class="table-responsive mb-4">
+            <table class="table table-borderless align-middle" id="itemsTable">
+                <thead class="border-bottom">
+                    <tr class="text-muted small text-uppercase">
+                        <th style="min-width: 150px;">Product</th>
+                        <th style="width: 100px;">Qty</th>
+                        <th style="width: 120px;">Price</th>
+                        <th style="width: 120px;">Subtotal</th>
+                        <th class="no-print" style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="invoiceItems">
+                    </tbody>
+            </table>
+            
+            <button class="btn btn-sm btn-bd-green mt-2 no-print" onclick="addRow()">
+                + Add Item
+            </button>
+        </div>
+
+        <hr class="mb-4 text-muted">
+
+        <div class="row justify-content-end">
+            <div class="col-12 col-md-5">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted fw-bold">Subtotal:</span>
+                    <input type="number" id="total_value" class="form-control form-control-sm text-end w-50 fw-bold" readonly>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted fw-bold">Discount (%):</span>
+                    <input type="number" id="discount_percent" class="form-control form-control-sm text-end w-50" value="0" oninput="calculateTotals()">
+                </div>
+                <div class="d-flex justify-content-between mb-2 p-2 bg-light rounded">
+                    <span class="text-bd-green fw-bold">Payable:</span>
+                    <input type="number" id="payable_value" class="form-control form-control-sm text-end w-50 fw-bold text-bd-green bg-white" readonly>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted fw-bold">Paid:</span>
+                    <input type="number" id="paid_amount" class="form-control form-control-sm text-end w-50" value="0" oninput="calculateTotals()">
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-bd-red fw-bold">Due:</span>
+                    <input type="number" id="due_amount" class="form-control form-control-sm text-end w-50 fw-bold text-bd-red bg-white" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="fixed-bottom bg-white border-top p-3 d-flex justify-content-between gap-2 shadow-lg no-print z-index-1000">
+    <button class="btn btn-outline-secondary w-50 py-2 fw-bold" onclick="window.print()">
+        Print Invoice
+    </button>
+    <button class="btn btn-bd-green w-50 py-2 fw-bold" onclick="saveInvoice()">
+        Save to System
+    </button>
+</div>
+
+<script id="product-data" type="application/json">
+    [
+        {% for product in products %}
+            {"id": {{ product.id }}, "name": "{{ product.name }}", "price": {{ product.price }}, "qty": {{ product.qty }}}
+            {% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ]
+</script>
+<script>
+    const products = JSON.parse(document.getElementById('product-data').textContent);
+    const tbody = document.getElementById('invoiceItems');
+
+    // Initialize with one empty row
+    document.addEventListener("DOMContentLoaded", () => { addRow(); });
+
+    function addRow() {
+        const rowId = Date.now(); // Unique ID for the row
+        const tr = document.createElement('tr');
+        tr.id = `row-${rowId}`;
+        
+        // Generate product options
+        let options = '<option value="">Select...</option>';
+        products.forEach(p => {
+            options += `<option value="${p.id}" data-price="${p.price}" data-stock="${p.qty}">${p.name} (Stock: ${p.qty})</option>`;
+        });
+
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm product-select" onchange="productSelected(${rowId})">
+                    ${options}
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm row-qty" value="1" min="1" oninput="calculateRow(${rowId})">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm row-price" oninput="calculateRow(${rowId})">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm row-subtotal fw-bold" readonly>
+            </td>
+            <td class="no-print text-end">
+                <button class="btn btn-sm btn-bd-red" onclick="removeRow(${rowId})">X</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function removeRow(id) {
+        document.getElementById(`row-${id}`).remove();
+        calculateTotals();
+    }
+
+    function productSelected(id) {
+        const row = document.getElementById(`row-${id}`);
+        const select = row.querySelector('.product-select');
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption.value) {
+            row.querySelector('.row-price').value = selectedOption.dataset.price;
+            calculateRow(id);
+        } else {
+            row.querySelector('.row-price').value = '';
+            row.querySelector('.row-subtotal').value = '';
+            calculateTotals();
+        }
+    }
+
+    function calculateRow(id) {
+        const row = document.getElementById(`row-${id}`);
+        const qty = parseFloat(row.querySelector('.row-qty').value) || 0;
+        const price = parseFloat(row.querySelector('.row-price').value) || 0;
+        
+        const subtotal = qty * price;
+        row.querySelector('.row-subtotal').value = subtotal.toFixed(2);
+        
+        calculateTotals();
+    }
+
+    function calculateTotals() {
+        let subtotal = 0;
+        document.querySelectorAll('.row-subtotal').forEach(input => {
+            subtotal += parseFloat(input.value) || 0;
+        });
+
+        const discountPercent = parseFloat(document.getElementById('discount_percent').value) || 0;
+        const discountAmount = subtotal * (discountPercent / 100);
+        const payable = subtotal - discountAmount;
+        
+        const paid = parseFloat(document.getElementById('paid_amount').value) || 0;
+        const due = payable - paid;
+
+        document.getElementById('total_value').value = subtotal.toFixed(2);
+        document.getElementById('payable_value').value = payable.toFixed(2);
+        document.getElementById('due_amount').value = due.toFixed(2);
+    }
+
+    async function saveInvoice() {
+        const items = [];
+        let hasError = false;
+
+        document.querySelectorAll('#invoiceItems tr').forEach(row => {
+            const productId = row.querySelector('.product-select').value;
+            const qty = row.querySelector('.row-qty').value;
+            const price = row.querySelector('.row-price').value;
+            const subtotal = row.querySelector('.row-subtotal').value;
+
+            if (productId) {
+                items.push({
+                    product_id: productId,
+                    quantity: qty,
+                    price: price,
+                    subtotal: subtotal
+                });
+            }
+        });
+
+        if (items.length === 0) {
+            alert("Please add at least one product.");
+            return;
+        }
+
+        const payload = {
+            invoice_type: document.getElementById('invoice_type').value,
+            customer_id: document.getElementById('customer_id').value,
+            total_value: document.getElementById('total_value').value,
+            discount_percent: document.getElementById('discount_percent').value,
+            payable_value: document.getElementById('payable_value').value,
+            paid_amount: document.getElementById('paid_amount').value,
+            due_amount: document.getElementById('due_amount').value,
+            items: items
+        };
+
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        try {
+            const response = await fetch("{% url 'save_invoice_api' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken // Critical for security!
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            if (response.ok && data.status === 'success') {
+                alert("Invoice saved successfully!");
+                // Optionally redirect to the view invoice page
+                window.location.href = `/invoice/${data.invoice_id}/`;
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (error) {
+            alert("Failed to connect to the server.");
+        }
+    }
+</script>
+{% endblock %}

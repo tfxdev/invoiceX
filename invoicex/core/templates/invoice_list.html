@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Invoice Ledger - KOT POS{% endblock %}
+
+{% block content %}
+<style>
+    .ledger-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: rgba(0, 106, 78, 0.03); /* Faint green hover */
+        cursor: pointer;
+    }
+    
+    .status-badge {
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+    }
+    
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: 0.2s;
+    }
+    .action-btn:hover { background-color: #f3f4f6; }
+    
+    /* Hide the ugly default focus rings on the search bar */
+    .search-input:focus {
+        box-shadow: 0 0 0 0.25rem rgba(0, 106, 78, 0.25);
+        border-color: #006a4e;
+    }
+</style>
+
+<div class="container mt-4 mb-5">
+    
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+        <div>
+            <h2 class="fw-bold text-dark mb-0">Invoice Ledger</h2>
+            <p class="text-muted mb-0">Manage and track all your transactions.</p>
+        </div>
+        <a href="{% url 'create_invoice' %}" class="btn text-white fw-bold shadow-sm px-4 py-2" style="background-color: #006a4e; border-radius: 8px;">
+            <i class="fa-solid fa-plus me-2"></i> New Invoice
+        </a>
+    </div>
+
+    <div class="ledger-card overflow-hidden">
+        
+        <div class="p-3 border-bottom bg-light d-flex justify-content-between align-items-center">
+            <div class="input-group" style="max-width: 400px;">
+                <span class="input-group-text bg-white text-muted border-end-0">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </span>
+                <input type="text" id="ledgerSearch" class="form-control border-start-0 search-input" placeholder="Search by ID or Customer Name..." onkeyup="filterTable()">
+            </div>
+            <span class="text-muted small fw-bold"><span id="rowCount">{{ invoices|length }}</span> Records</span>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="ledgerTable">
+                <thead class="table-light text-muted small text-uppercase" style="letter-spacing: 0.5px;">
+                    <tr>
+                        <th class="ps-4">Inv #</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Customer</th>
+                        <th class="text-end">Payable</th>
+                        <th class="text-end">Due</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in invoices %}
+                    <tr data-search="{{ inv.id }} {{ inv.customer.name|lower|default:'walk-in' }}">
+                        <td class="ps-4 fw-bold text-dark">#{{ inv.id }}</td>
+                        <td class="text-muted">
+                            <div class="fw-bold text-dark">{{ inv.created_at|date:"M d, Y" }}</div>
+                            <div style="font-size: 0.8rem;">{{ inv.created_at|date:"h:i A" }}</div>
+                        </td>
+                        <td>
+                            {% if inv.invoice_type == 'sale' %}
+                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 status-badge"><i class="fa-solid fa-arrow-trend-up me-1"></i> SALE</span>
+                            {% else %}
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 status-badge"><i class="fa-solid fa-box-open me-1"></i> PURCHASE</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark">
+                            {{ inv.customer.name|default:"<span class='text-muted fw-normal fst-italic'>Walk-in Customer</span>"|safe }}
+                        </td>
+                        <td class="text-end fw-bold">{{ inv.payable_value|floatformat:2 }} ৳</td>
+                        <td class="text-end fw-bold {% if inv.due_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {{ inv.due_amount|floatformat:2 }} ৳
+                        </td>
+                        <td class="text-center">
+                            {% if inv.due_amount <= 0 %}
+                                <span class="badge bg-success status-badge px-2 py-1">PAID</span>
+                            {% else %}
+                                <span class="badge bg-danger status-badge px-2 py-1">DUE</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <a href="{% url 'invoice_view' inv.id %}" class="action-btn text-primary" title="View Invoice">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+                            <a href="{% url 'edit_invoice' inv.id %}" class="action-btn text-warning" title="Edit Invoice">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <a href="{% url 'invoice_view' inv.id %}"  class="action-btn text-dark" title="Quick Print">
+                                <i class="fa-solid fa-print"></i>
+                            </a>
+                            
+                            <form method="POST" action="{% url 'delete_invoice' inv.id %}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete Invoice #{{ inv.id }}? The stock will be returned to your inventory.');">
+                                {% csrf_token %}
+                                <button type="submit" class="action-btn text-danger border-0 bg-transparent" title="Delete Invoice">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-receipt fs-1 mb-3 opacity-25 text-dark"></i>
+                            <h5>No invoices found</h5>
+                            <p>You haven't created any invoices yet.</p>
+                            <a href="{% url 'create_invoice' %}" class="btn btn-sm btn-outline-dark mt-2">Create your first invoice</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Extremely fast Vanilla JS table filter
+    function filterTable() {
+        const input = document.getElementById("ledgerSearch").value.toLowerCase();
+        const rows = document.querySelectorAll("#ledgerTable tbody tr");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            // Ignore the empty state row
+            if (row.cells.length === 1) return; 
+
+            // We added a custom 'data-search' attribute to the <tr> tags above
+            // which contains the ID and Customer Name for easy matching
+            const searchData = row.getAttribute('data-search');
+            
+            if (searchData.includes(input)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        // Update the records count in the UI
+        document.getElementById("rowCount").innerText = visibleCount;
+    }
+</script>
+{% endblock %}
