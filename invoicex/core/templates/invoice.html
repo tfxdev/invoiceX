@@ -146,7 +146,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for item in invoice.items.all %}
+                {% for item in items %}
                 <tr>
                     <td style="color: var(--text-muted);">{{ forloop.counter }}</td>
                     <td class="item-name">{{ item.product.name }}</td>

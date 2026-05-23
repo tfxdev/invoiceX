@@ -5,20 +5,16 @@ from django.contrib.auth.models import User
 class CompanyProfileForm(forms.ModelForm):
     class Meta:
         model = CompanyProfile
-        exclude = ['user']
-        labels = {
-            'company_name':'Your company name:',
-            'address': 'Company address (Shown in invoice)',
-            'phone': 'Phone number (Shown in invoice)',
-            'email': 'Email address (Shown in invoice)',
-        }
+        fields = ['company_name', 'address', 'phone', 'email', 'industry', 'description']
         widgets = {
-            'company_name': forms.TextInput(attrs={'class':'form-control mt-2 mb-3'}),
-            'address': forms.TextInput(attrs={'class':'form-control mt-2 mb-3'}),
-            'phone': forms.TextInput(attrs={'class':'form-control mt-2 mb-3'}),
-            'email': forms.EmailInput(attrs={'class':'form-control mt-2'})
+            'company_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            # Add Bootstrap classes to the new fields
+            'industry': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Pharmacy'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Describe the types of products you sell...'}),
         }
-
 class AccountForm(forms.ModelForm):
     class Meta:
         model = User

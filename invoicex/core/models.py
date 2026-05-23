@@ -7,6 +7,8 @@ class CompanyProfile(models.Model):
     address = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
+    industry = models.CharField(max_length=100, blank=True, null=True, help_text="e.g., Pharmacy, Grocery, Electronics")
+    description = models.TextField(blank=True, null=True, help_text="e.g., Wholesale local medicines and surgical tools.") 
 
     def __str__(self):
         return f"{self.user.username}'s Company Profile"

@@ -1,3 +1,5 @@
+from urllib import request
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
@@ -11,7 +13,7 @@ from decimal import Decimal
 import google.generativeai as genai
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
-
+import difflib
 from .models import *
 from .forms import CompanyProfileForm, AccountForm
 
@@ -228,14 +230,13 @@ def invoice_list_view(request):
 def invoice_view(request, invoice_id):
     invoice = get_object_or_404(Invoice, id=invoice_id)
     if invoice.user != request.user:
-        raise Http404
-    
+        raise Http404   
     try:
         company_profile = CompanyProfile.objects.get(user=request.user)
     except CompanyProfile.DoesNotExist:
         company_profile = None
-
-    return render(request, 'invoice.html', {'invoice': invoice, 'company_profile': company_profile})
+    items = invoice.items.all().order_by('product__name')
+    return render(request, 'invoice.html', {'invoice': invoice, 'items':items, 'company_profile': company_profile})
 
 
 @login_required
@@ -428,35 +429,65 @@ def scan_invoice_api(request):
             return JsonResponse({'status': 'error', 'message': 'No images provided.'}, status=400)
 
         model = genai.GenerativeModel('gemini-3.1-flash-lite')
+        
+        try:
+            profile = CompanyProfile.objects.get(user=request.user)
+            industry_str = f"This business is a {profile.industry}." if profile.industry else ""
+            desc_str = f"They specialize in: {profile.description}." if profile.description else ""
+            location_str = f"They are located at: {profile.address}." if profile.address else ""
+        except CompanyProfile.DoesNotExist:
+            industry_str = desc_str = location_str = ""
 
-        prompt = """You are an expert invoice data extractor.
-I am providing you with one or more images of an invoice (it may be multiple pages of the same bill).
-Combine all the items across all pages into a single, unified JSON object.
-Do not duplicate items. 
+        # --- NEW: LEXICON INJECTION (The Cheat Sheet) ---
+        # Get all product names for this specific user. 
+        # (We limit to 2000 to keep the AI lightning fast, which covers 99% of small businesses)
+        db_product_names = list(Product.objects.filter(user=request.user).values_list('name', flat=True)[:2000])
+        lexicon_string = "\n".join([f"- {name}" for name in db_product_names])
 
-The JSON must follow this exact schema:
-{
-  "invoice_type": "sale" or "purchase",
-  "customer_name": "<string or null>",
-  "authorized_signature": "<string or null>",
-  "discount_percent": <number>,
-  "paid_amount": <number>,
-  "items": [
-    {
-      "product_name": "<string>",
-      "quantity": <integer>,
-      "price": <number>,
-      "subtotal": <number>
-    }
-  ]
-}
-Rules:
-- invoice_type: use "sale" when goods go OUT (customer invoice), "purchase" when goods come IN (supplier bill).
-- discount_percent: percentage value (e.g. 10 for 10%). Default 0 if not present.
-- paid_amount: the amount already paid. Default to the full payable amount if not stated.
-- All monetary values must be plain numbers, no currency symbols.
-- If a field cannot be found, use null for strings or 0 for numbers.
-"""
+        # 2. Inject it dynamically into the Prompt
+        prompt = f"""You are an expert invoice data extractor.
+
+        BUSINESS CONTEXT:
+        {industry_str}
+        {location_str}
+        {desc_str}
+
+        VALID PRODUCT DICTIONARY:
+        {lexicon_string}
+
+        CRITICAL INSTRUCTIONS:
+        1. DICTIONARY GROUNDING: You MUST use the "VALID PRODUCT DICTIONARY" above as your primary reference. When you read a handwritten item, before making a guess, check if it resembles any item in the dictionary. If it is a visual match (even if spelled poorly on the paper), output the EXACT name as it appears in the dictionary.
+        2. RESOLVING DITTO MARKS: Customers frequently use ditto marks (") or the word "DO" / "Do." to refer to the product name on the line directly above it. You MUST resolve this visually. NEVER output '"' or 'DO' as a product name. You must combine the previous name with the new extension.
+        3. NO HALLUCINATION: Only output items that are actually on the invoice. If an item is clearly not in the dictionary, output what you see, but prioritize dictionary matches heavily.
+
+        I am providing you with one or more images of an invoice (it may be multiple pages of the same bill).
+        Combine all the items across all pages into a single, unified JSON object.
+        Do not duplicate items. 
+
+        The JSON must follow this exact schema:
+        {{
+        "invoice_type": "sale" or "purchase",
+        "customer_name": "<string or null>",
+        "authorized_signature": "<string or null>",
+        "discount_percent": <number>,
+        "paid_amount": <number>,
+        "items": [
+            {{
+            "product_name": "<string>",
+            "quantity": <integer>,
+            "price": <number>,
+            "subtotal": <number>
+            }}
+        ]
+        }}
+
+        Rules:
+        - invoice_type: use "sale" when goods go OUT (customer invoice), "purchase" when goods come IN (supplier bill).
+        - discount_percent: percentage value (e.g. 10 for 10%). Default 0 if not present.
+        - paid_amount: the amount already paid. Default to the full payable amount if not stated.
+        - All monetary values must be plain numbers, no currency symbols.
+        - If a field cannot be found, use null for strings or 0 for numbers.
+        """
 
         gemini_content = [prompt]
         for img in images:
@@ -474,30 +505,62 @@ Rules:
         
         extracted = json.loads(response.text)
 
-        # ── Fuzzy Matching against DB products ──
+        # ── Superior Fuzzy Matching against DB products ──
         db_products = list(Product.objects.filter(user=request.user).values('id', 'name', 'price', 'qty'))
 
-        def best_match(name):
-            name_lower = name.lower()
+        def best_match(extracted_name):
+            extracted_name_lower = extracted_name.lower().strip()
+            best_p = None
+            highest_ratio = 0.0
+
             for p in db_products:
-                if p['name'].lower() == name_lower:
+                db_name_lower = p['name'].lower().strip()
+                
+                # 1. Exact Match
+                if extracted_name_lower == db_name_lower:
                     return p
-            for p in db_products:
-                if name_lower in p['name'].lower() or p['name'].lower() in name_lower:
+                
+                # 2. Substring Match (e.g. "Napa" inside "Napa Extra 500mg")
+                if extracted_name_lower in db_name_lower or db_name_lower in extracted_name_lower:
                     return p
+                    
+                # 3. Mathematical Fuzzy Match (Catches spelling mistakes like "Paracetamal")
+                ratio = difflib.SequenceMatcher(None, extracted_name_lower, db_name_lower).ratio()
+                if ratio > highest_ratio:
+                    highest_ratio = ratio
+                    best_p = p
+
+            # If the best fuzzy match is at least 65% similar, we accept it as a match!
+            if highest_ratio > 0.65:
+                return best_p
+                
             return None
 
         matched_items = []
         for item in extracted.get('items', []):
             match = best_match(item['product_name'])
+            
+            if match:
+                # STRICT DB OVERRIDE: Throw away the AI's hallucination. 
+                # Use the exact Name and Price from your database.
+                final_name = match['name']
+                final_price = float(match['price'])
+                final_subtotal = item['quantity'] * final_price
+            else:
+                # No match found. Keep the AI's guess so it shows up 
+                # in the yellow "Unresolved" warning box for manual fixing.
+                final_name = item['product_name']
+                final_price = item.get('price', 0)
+                final_subtotal = item.get('subtotal', 0)
+
             matched_items.append({
-                'product_name':  item['product_name'],
-                'product_id':    match['id']    if match else None,
-                'product_price': float(match['price']) if match else item['price'],
-                'stock_qty':     match['qty']   if match else None,
+                'product_name':  final_name,
+                'product_id':    match['id'] if match else None,
+                'product_price': final_price,
+                'stock_qty':     match['qty'] if match else None,
                 'quantity':      item['quantity'],
-                'price':         item['price'],
-                'subtotal':      item['subtotal'],
+                'price':         final_price,
+                'subtotal':      final_subtotal,
                 'matched':       match is not None,
             })
 
