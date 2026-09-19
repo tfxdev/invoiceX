@@ -52,6 +52,9 @@ class Supplier(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.CharField(max_length=220, blank=True, null=True)
+    # What YOU still owe this supplier. Increased by purchase bills (and manual
+    # charges), decreased when you record a payment via SupplierPaymentRecord.
+    due = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     def __str__(self):
         return self.name
@@ -223,3 +226,47 @@ class PaymentRecord(models.Model):
         
     def __str__(self):
         return f"{self.customer.name} - {self.transaction_type} - {self.amount}"
+
+
+class SupplierPaymentRecord(models.Model):
+    """Mirror of PaymentRecord for money YOU owe a supplier.
+
+    'charge'  increases what you owe (opening balance / manual bill).
+    'payment' records money paid out and reduces the balance.
+    """
+    TRANSACTION_TYPE = [
+        ('charge', 'Bill Added to Payable'),
+        ('payment', 'Payment Made'),
+    ]
+    # Reuse the same payment-method vocabulary the customer ledger uses.
+    PAYMENT_METHOD = PaymentRecord.PAYMENT_METHOD
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='ledger')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    transaction_type = models.CharField(choices=TRANSACTION_TYPE, max_length=20)
+    payment_method = models.CharField(choices=PAYMENT_METHOD, max_length=20, default='cash')
+    note = models.CharField(max_length=255, blank=True, null=True)
+    date = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            # Automatically update the Supplier's payable balance
+            if self.transaction_type == 'charge':
+                self.supplier.due += self.amount
+            elif self.transaction_type == 'payment':
+                self.supplier.due -= self.amount
+            self.supplier.save()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        # Safely reverse the balance if a record is deleted
+        if self.transaction_type == 'charge':
+            self.supplier.due -= self.amount
+        elif self.transaction_type == 'payment':
+            self.supplier.due += self.amount
+        self.supplier.save()
+        super().delete(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.supplier.name} - {self.transaction_type} - {self.amount}"

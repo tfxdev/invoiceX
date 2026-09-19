@@ -1,0 +1,266 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Invoice Pro — invoicing, inventory, customer &amp; supplier ledgers and profit tracking for small shops.">
+    <title>Invoice Pro — Simple invoicing for your shop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html, body { margin: 0; padding: 0; }
+
+        body.landing {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            color: #24352f;
+            background-color: #dfeae0;
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
+
+        /* ---- calming background ---- */
+        .landing-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: url("{% static 'img/landing-bg.svg' %}") center bottom / cover no-repeat;
+        }
+        .landing-bg::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 42%, rgba(233,241,235,0.18));
+        }
+
+        /* ---- layout ---- */
+        .wrap {
+            min-height: 100vh;
+            min-height: 100dvh;
+            max-width: 1340px;
+            margin: 0 auto;
+            padding: clamp(24px, 4vh, 56px) clamp(22px, 5vw, 84px);
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: clamp(28px, 4.5vw, 80px);
+            align-items: center;
+        }
+
+        /* ---- hero ---- */
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            font-size: 17px;
+            color: #0b5d49;
+        }
+        .brand-mark {
+            width: 42px; height: 42px;
+            border-radius: 13px;
+            display: grid; place-items: center;
+            color: #fff;
+            background: linear-gradient(135deg, #149072, #0b5d49);
+            box-shadow: 0 10px 22px -8px rgba(11, 93, 73, 0.6);
+        }
+        .brand-mark svg { width: 22px; height: 22px; }
+
+        .hero h1 {
+            font-size: clamp(30px, 3.5vw, 51px);
+            line-height: 1.05;
+            letter-spacing: -0.022em;
+            margin: 24px 0 16px;
+            color: #11332b;
+            max-width: 15ch;
+        }
+        .hero .lead {
+            font-size: clamp(15px, 1.15vw, 17.5px);
+            line-height: 1.62;
+            color: #3d5750;
+            max-width: 52ch;
+            margin: 0 0 26px;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            font-size: 13.5px;
+            font-weight: 500;
+            color: #2b473f;
+            background: rgba(255, 255, 255, 0.68);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+        .chip svg { width: 15px; height: 15px; color: #0f7a5c; flex: none; }
+
+        /* ---- auth card ---- */
+        .auth {
+            justify-self: end;
+            width: min(430px, 100%);
+            padding: clamp(24px, 2.4vw, 36px);
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.80);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 30px 60px -24px rgba(20, 61, 50, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .auth h2 { margin: 0 0 6px; font-size: 23px; color: #11332b; letter-spacing: -0.01em; }
+        .auth .sub { margin: 0 0 22px; font-size: 14px; color: #5c756d; }
+
+        .lp-error {
+            margin: 0 0 16px;
+            padding: 11px 14px;
+            border-radius: 11px;
+            font-size: 13.5px;
+            color: #9f1239;
+            background: rgba(225, 29, 72, 0.08);
+            border: 1px solid rgba(225, 29, 72, 0.22);
+        }
+        .lp-field { margin-bottom: 15px; }
+        .lp-label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 11.5px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #5f7a71;
+        }
+        .lp-input {
+            width: 100%;
+            padding: 13px 15px;
+            font-size: 15px;
+            color: #1d332c;
+            border: 1px solid #cfe0d8;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.92);
+            outline: none;
+            transition: border-color .18s, box-shadow .18s, background .18s;
+        }
+        .lp-input::placeholder { color: #9bb0a9; }
+        .lp-input:focus {
+            border-color: #0f7a5c;
+            background: #fff;
+            box-shadow: 0 0 0 4px rgba(15, 122, 92, 0.14);
+        }
+        .lp-btn {
+            width: 100%;
+            margin-top: 8px;
+            padding: 14px;
+            font-size: 15.5px;
+            font-weight: 700;
+            color: #fff;
+            border: 0;
+            border-radius: 12px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #149072, #0b5d49);
+            box-shadow: 0 16px 28px -14px rgba(11, 93, 73, 0.9);
+            transition: transform .16s, box-shadow .16s;
+        }
+        .lp-btn:hover { transform: translateY(-1px); box-shadow: 0 20px 32px -14px rgba(11, 93, 73, 0.95); }
+        .lp-btn:active { transform: translateY(0); }
+        .lp-foot { margin: 20px 0 0; text-align: center; font-size: 12.5px; color: #6b837a; }
+
+        /* ---- fit on desktop, flow on mobile ---- */
+        @media (min-width: 992px) {
+            .wrap { height: 100vh; height: 100dvh; }
+        }
+        @media (min-width: 992px) and (min-height: 650px) {
+            body.landing { overflow: hidden; }
+        }
+        @media (max-width: 991px) {
+            .wrap { grid-template-columns: 1fr; align-content: center; }
+            .auth { justify-self: stretch; }
+            .hero h1 { max-width: 20ch; }
+        }
+    </style>
+</head>
+<body class="landing">
+    <div class="landing-bg" aria-hidden="true"></div>
+
+    <main class="wrap">
+        <section class="hero">
+            <span class="brand">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 10l1-5h14l1 5"/>
+                        <path d="M5 10v9h14v-9"/>
+                        <path d="M9.5 19v-5h5v5"/>
+                    </svg>
+                </span>
+                Invoice Pro
+            </span>
+
+            <h1>Everything your shop bills, in one calm place.</h1>
+
+            <p class="lead">
+                Invoice Pro keeps your day-to-day selling and buying in a single tidy workspace.
+                Create sales invoices and supplier bills in seconds, track stock as it moves, and
+                follow exactly who owes you and who you owe — then see your profit at a glance.
+                You can even snap a photo of a paper bill and let it fill itself in.
+            </p>
+
+            <div class="chips">
+                <span class="chip">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.4" stroke-width="1.3"/><path d="M6 10.4l2.6 2.6L14 7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Invoicing &amp; POS
+                </span>
+                <span class="chip">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.4" stroke-width="1.3"/><path d="M6 10.4l2.6 2.6L14 7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Inventory &amp; stock
+                </span>
+                <span class="chip">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.4" stroke-width="1.3"/><path d="M6 10.4l2.6 2.6L14 7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Customer &amp; supplier ledgers
+                </span>
+                <span class="chip">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.4" stroke-width="1.3"/><path d="M6 10.4l2.6 2.6L14 7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Profit at a glance
+                </span>
+                <span class="chip">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="8.4" stroke-width="1.3"/><path d="M6 10.4l2.6 2.6L14 7.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    AI bill scanning
+                </span>
+            </div>
+        </section>
+
+        <section class="auth" aria-label="Sign in">
+            <h2>Welcome back</h2>
+            <p class="sub">Sign in to open your dashboard.</p>
+
+            {% if form.errors %}
+                <div class="lp-error" role="alert">
+                    {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+                    {% for field in form %}{% for error in field.errors %}{{ error }} {% endfor %}{% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="post" action="{% url 'landing' %}" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ next }}">
+
+                <div class="lp-field">
+                    <label class="lp-label" for="{{ form.username.id_for_label }}">Username</label>
+                    {{ form.username }}
+                </div>
+                <div class="lp-field">
+                    <label class="lp-label" for="{{ form.password.id_for_label }}">Password</label>
+                    {{ form.password }}
+                </div>
+
+                <button type="submit" class="lp-btn">Sign in</button>
+            </form>
+
+            <p class="lp-foot">Accounts are created by your workspace administrator.</p>
+        </section>
+    </main>
+</body>
+</html>

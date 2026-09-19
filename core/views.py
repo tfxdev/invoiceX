@@ -3,7 +3,9 @@ from urllib import request
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseRedirect, Http404
 from django.urls import reverse
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.db import transaction
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -19,7 +21,7 @@ import csv
 from django.http import HttpResponse
 import difflib
 from .models import *
-from .forms import CompanyProfileForm, AccountForm
+from .forms import CompanyProfileForm, AccountForm, StyledAuthenticationForm
 
 # Configure AI SDK at module level to prevent re-initializing on every request
 genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -28,6 +30,43 @@ genai.configure(api_key=settings.GEMINI_API_KEY)
 def custom_404_view(request, exception=None):
     """Redirect all 404 errors to the create invoice page."""
     return HttpResponseRedirect(reverse('create_invoice'))
+
+
+def _safe_next(request, fallback='home_dashboard'):
+    """Return a validated ?next= target, or the fallback URL name."""
+    candidate = request.POST.get('next') or request.GET.get('next')
+    if candidate and url_has_allowed_host_and_scheme(
+        candidate, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return candidate
+    return fallback
+
+
+def landing_view(request):
+    """Combined landing page and sign-in page.
+
+    Anonymous visitors see what the app does plus a login form; signed-in
+    visitors are sent straight to their dashboard.
+    """
+    if request.user.is_authenticated:
+        return redirect('home_dashboard')
+
+    form = StyledAuthenticationForm(request, data=request.POST or None)
+    if request.method == 'POST':
+        if form.is_valid():
+            login(request, form.get_user())
+            return redirect(_safe_next(request))
+
+    return render(request, 'landing.html', {
+        'form': form,
+        'next': request.GET.get('next', ''),
+    })
+
+
+def logout_view(request):
+    """Sign the user out and send them back to the landing page."""
+    logout(request)
+    return redirect('landing')
 
 @login_required
 def dashboard_view(request):
@@ -88,7 +127,7 @@ def dashboard_view(request):
     invoice_outstanding = sales.aggregate(Sum('due_amount'))['due_amount__sum'] or Decimal('0.00')
 
     # 12. Payables (money you still owe suppliers)
-    total_payable = purchases.aggregate(Sum('due_amount'))['due_amount__sum'] or Decimal('0.00')
+    total_payable = Supplier.objects.filter(user=request.user).aggregate(Sum('due'))['due__sum'] or Decimal('0.00')
 
     # ---- Range-scoped querysets -------------------------------------------
     sales_in_range = sales.filter(created_at__date__gte=range_start)
@@ -182,7 +221,11 @@ def dashboard_view(request):
         date__date__gte=range_start).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
     invoice_in = sales_in_range.aggregate(Sum('paid_amount'))['paid_amount__sum'] or Decimal('0.00')
     cash_in = float(invoice_in) + float(ledger_in)
-    cash_out = float(purchases_in_range.aggregate(Sum('paid_amount'))['paid_amount__sum'] or Decimal('0.00'))
+    supplier_payments_out = SupplierPaymentRecord.objects.filter(
+        user=request.user, transaction_type='payment',
+        date__date__gte=range_start).aggregate(Sum('amount'))['amount__sum'] or Decimal('0.00')
+    cash_out = (float(purchases_in_range.aggregate(Sum('paid_amount'))['paid_amount__sum'] or Decimal('0.00'))
+                + float(supplier_payments_out))
 
     # h) Payment methods used (in range)
     method_rows = list(
@@ -202,8 +245,7 @@ def dashboard_view(request):
     supplier_labels = [row['supplier__name'] for row in supplier_rows]
     supplier_values = [round(float(row['total'] or 0), 2) for row in supplier_rows]
     top_payables = list(
-        purchases.filter(supplier__isnull=False, due_amount__gt=0)
-        .values('supplier__name').annotate(due=Sum('due_amount')).order_by('-due')[:5]
+        Supplier.objects.filter(user=request.user, due__gt=0).order_by('-due')[:5]
     )
 
     # j) Inventory turnover: units sold vs stock on hand (in range)
@@ -504,7 +546,7 @@ def delete_customer_view(request, customer_id):
 
 @login_required
 def supplier_list_view(request):
-    """Handles displaying, adding and editing suppliers (vendors you buy from)."""
+    """Handles displaying, adding, editing and paying suppliers (vendors you buy from)."""
     if request.method == 'POST':
         action = request.POST.get('action')
 
@@ -513,14 +555,31 @@ def supplier_list_view(request):
                 user=request.user,
                 name=request.POST.get('name', ''),
                 phone=request.POST.get('phone', ''),
-                address=request.POST.get('address', '')
+                address=request.POST.get('address', ''),
+                due=Decimal(request.POST.get('due', 0) or 0)
             )
         elif action == 'edit':
             supplier = get_object_or_404(Supplier, id=request.POST.get('supplier_id'), user=request.user)
             supplier.name = request.POST.get('name', '')
             supplier.phone = request.POST.get('phone', '')
             supplier.address = request.POST.get('address', '')
+            # The payable balance is only changed through the ledger / bills.
             supplier.save()
+        elif action == 'adjust_balance':
+            # --- Handles payments to a supplier & manual payables ---
+            supplier = get_object_or_404(Supplier, id=request.POST.get('supplier_id'), user=request.user)
+            trans_type = request.POST.get('trans_type')  # 'payment' or 'charge'
+            amount = Decimal(request.POST.get('amount', 0) or 0)
+            note = request.POST.get('note', 'Manual Adjustment')
+
+            SupplierPaymentRecord.objects.create(
+                user=request.user,
+                supplier=supplier,
+                amount=amount,
+                transaction_type=trans_type,
+                payment_method=request.POST.get('payment_method', 'cash'),
+                note=note
+            )
 
         return redirect('supplier_list')
 
@@ -530,15 +589,41 @@ def supplier_list_view(request):
     spend_rows = (Invoice.objects
                   .filter(user=request.user, invoice_type='purchase', supplier__isnull=False)
                   .values('supplier_id')
-                  .annotate(total=Sum('payable_value'), bills=Count('id'), outstanding=Sum('due_amount')))
+                  .annotate(total=Sum('payable_value'), bills=Count('id')))
     spend_map = {row['supplier_id']: row for row in spend_rows}
     for s in suppliers:
         row = spend_map.get(s.id, {})
         s.total_spend = row.get('total') or Decimal('0.00')
         s.bill_count = row.get('bills') or 0
-        s.outstanding = row.get('outstanding') or Decimal('0.00')
+        # Balance you still owe: kept on the model, reduced by recorded payments.
+        s.outstanding = s.due
 
     return render(request, 'supplier_list.html', {'suppliers': suppliers})
+
+
+@login_required
+def supplier_ledger_api(request, supplier_id):
+    """Returns the payment and bill history for a specific supplier."""
+    supplier = get_object_or_404(Supplier, id=supplier_id, user=request.user)
+
+    records = SupplierPaymentRecord.objects.filter(supplier=supplier).order_by('-date')[:50]
+
+    history_data = []
+    for r in records:
+        history_data.append({
+            'date': r.date.strftime("%b %d, %Y - %I:%M %p"),
+            'type': r.transaction_type,  # 'payment' or 'charge'
+            'amount': float(r.amount),
+            'method': r.get_payment_method_display(),
+            'note': r.note or "System Update"
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'supplier_name': supplier.name,
+        'current_due': float(supplier.due),
+        'history': history_data
+    })
 
 @login_required
 def delete_supplier_view(request, supplier_id):
@@ -605,6 +690,11 @@ def delete_invoice_view(request, invoice_id):
                     note=f"Stock reversal for deleted Invoice #{invoice.id}"
                 )
         
+        # Reverse the payable this purchase bill added to the supplier.
+        if invoice.invoice_type == 'purchase' and invoice.supplier:
+            invoice.supplier.due -= invoice.due_amount
+            invoice.supplier.save()
+
         # Delete the invoice (Django automatically deletes the attached InvoiceItems)
         invoice.delete()
         
@@ -717,7 +807,12 @@ def save_invoice_api(request):
             if invoice_id:
                 # --- UPDATE EXISTING INVOICE ---
                 invoice = get_object_or_404(Invoice, id=invoice_id, user=request.user)
-                
+
+                # Capture the payable this bill previously contributed, so we can
+                # reverse it after the edit (supplier bills only).
+                old_supplier = invoice.supplier
+                old_due_amount = invoice.due_amount
+
                 # 1. Reverse the stock for all OLD items
                 for old_item in invoice.items.all():
                     if old_item.product:
@@ -747,6 +842,17 @@ def save_invoice_api(request):
                 invoice.due_amount = Decimal(data['due_amount'])
                 invoice.authorized_signature = data.get('authorized_signature', '')
                 invoice.save()
+
+                # Keep the supplier's payable balance in step with the edit:
+                # remove the old contribution, then add the new one.
+                if old_supplier:
+                    old_supplier.due -= old_due_amount
+                    old_supplier.save()
+                if supplier and invoice_type == 'purchase':
+                    # Re-read: another instance may have just changed this row above.
+                    supplier.refresh_from_db(fields=['due'])
+                    supplier.due += invoice.due_amount
+                    supplier.save()
                 
             else:
                 # --- CREATE NEW INVOICE ---
@@ -766,6 +872,10 @@ def save_invoice_api(request):
                     due_amount = Decimal(data['due_amount'])
                     customer.due += due_amount
                     customer.save()
+                if supplier and invoice_type == 'purchase':
+                    # What you still owe the supplier grows with the unpaid part of the bill.
+                    supplier.due += Decimal(data['due_amount'])
+                    supplier.save()
                     
             # Create the NEW items and NEW stock records (runs for both Create & Edit)
             for item_data in data['items']:

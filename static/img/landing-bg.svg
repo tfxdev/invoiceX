@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Calm layered green hills at dawn">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4f8f0"/>
+      <stop offset="0.42" stop-color="#e6efe5"/>
+      <stop offset="1" stop-color="#d2e2dc"/>
+    </linearGradient>
+    <radialGradient id="sunGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff7e0" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#fbeecb" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#fbeecb" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e0ede9"/>
+      <stop offset="1" stop-color="#c4dad3"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.55"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1000" cy="395" r="330" fill="url(#sunGlow)"/>
+  <circle cx="1000" cy="395" r="86" fill="#fdf4d8" opacity="0.92"/>
+
+  <!-- distant birds -->
+  <g fill="none" stroke="#93ac9f" stroke-width="3" stroke-linecap="round" opacity="0.55">
+    <path d="M360 440 q 15 -12 30 0 q 15 -12 30 0"/>
+    <path d="M450 402 q 12 -9 24 0 q 12 -9 24 0"/>
+    <path d="M540 452 q 10 -8 20 0 q 10 -8 20 0"/>
+  </g>
+
+  <!-- hills, far to near -->
+  <path d="M0 600 C 220 528 380 540 560 596 C 760 658 980 652 1180 598 C 1330 558 1475 574 1600 620 L1600 900 L0 900 Z" fill="#c9dccf" opacity="0.92"/>
+  <path d="M0 688 C 200 626 360 648 540 700 C 740 756 960 740 1160 690 C 1320 650 1480 666 1600 702 L1600 900 L0 900 Z" fill="#abc9ba"/>
+
+  <!-- misty valley water -->
+  <path d="M0 762 C 300 738 500 762 800 760 C 1100 758 1300 738 1600 754 L1600 824 L0 824 Z" fill="url(#water)"/>
+  <rect x="0" y="690" width="1600" height="120" fill="url(#mist)"/>
+
+  <!-- foreground hill -->
+  <path d="M0 832 C 260 792 520 816 820 824 C 1120 832 1360 802 1600 814 L1600 900 L0 900 Z" fill="#82a894"/>
+  <path d="M0 876 C 300 858 600 874 900 872 C 1200 870 1400 858 1600 868 L1600 900 L0 900 Z" fill="#638d7e" opacity="0.95"/>
+  <!-- solid ground base: keeps the very bottom seamless under any cover-crop -->
+  <rect x="0" y="884" width="1600" height="16" fill="#638d7e"/>
+</svg>

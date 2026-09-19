@@ -350,7 +350,7 @@
                         {% for s in top_payables %}
                         <div class="debtor-row border-top">
                             <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-semibold text-dark">{{ s.supplier__name }}</span>
+                                <span class="fw-semibold text-dark">{{ s.name }}</span>
                                 <span class="fw-bold text-danger">{{ s.due|floatformat:2 }} ৳</span>
                             </div>
                             <div class="debtor-bar"><span style="width: {% widthratio s.due top_payables.0.due 100 %}%; background: linear-gradient(90deg,#a855f7,#ec4899);"></span></div>

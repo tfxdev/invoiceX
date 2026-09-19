@@ -99,6 +99,13 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                 <li><a class="dropdown-item" href="{% url 'dashboard' %}"><i class="fa-solid fa-gear me-2"></i> Settings</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form method="post" action="{% url 'logout' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item"><i class="fa-solid fa-right-from-bracket me-2"></i> Log out</button>
+                                    </form>
+                                </li>
                             </ul>
                         </li>
                     {% endif %}

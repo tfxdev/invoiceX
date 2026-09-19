@@ -12,11 +12,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SERVER = True
+load_dotenv()
+
+SERVER = os.environ.get('SERVER', 'False') == 'True'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -74,6 +78,11 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'invoicex.wsgi.application'
+
+# Authentication redirects: the landing page is also the sign-in page.
+LOGIN_URL = 'landing'
+LOGIN_REDIRECT_URL = 'home_dashboard'
+LOGOUT_REDIRECT_URL = 'landing'
 
 
 # Database

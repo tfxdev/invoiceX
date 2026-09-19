@@ -1,6 +1,26 @@
 from django import forms
+from django.contrib.auth.forms import AuthenticationForm
 from .models import CompanyProfile
 from django.contrib.auth.models import User
+
+
+class StyledAuthenticationForm(AuthenticationForm):
+    """Login form used by the combined landing / sign-in page."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['username'].widget.attrs.update({
+            'class': 'lp-input',
+            'placeholder': 'Username',
+            'autocomplete': 'username',
+            'autofocus': True,
+        })
+        self.fields['password'].widget.attrs.update({
+            'class': 'lp-input',
+            'placeholder': 'Password',
+            'autocomplete': 'current-password',
+        })
+
 
 class CompanyProfileForm(forms.ModelForm):
     class Meta:

@@ -3,7 +3,10 @@ from .views import *
 from django.contrib import admin
 
 urlpatterns = [
-    path('', dashboard_view, name='home_dashboard'),
+    # Landing page doubles as the sign-in page for anonymous visitors.
+    path('', landing_view, name='landing'),
+    path('logout/', logout_view, name='logout'),
+    path('dashboard/', dashboard_view, name='home_dashboard'),
     path('dashboard/export/', dashboard_export_csv, name='dashboard_export_csv'),
     # API Endpoints (Used by Javascript)
     path('api/save_invoice/', save_invoice_api, name='save_invoice_api'),
@@ -21,6 +24,7 @@ urlpatterns = [
     # --- SUPPLIER MANAGEMENT ---
     path('suppliers/', supplier_list_view, name='supplier_list'),
     path('supplier/<int:supplier_id>/delete/', delete_supplier_view, name='delete_supplier'),
+    path('api/supplier/<int:supplier_id>/ledger/', supplier_ledger_api, name='supplier_ledger_api'),
     path('product/<int:product_id>/delete/', delete_product_view, name='delete_product'),
     path('api/product/<int:product_id>/history/', product_stock_history_api, name='product_stock_history_api'),
     path('api/customer/<int:customer_id>/ledger/', customer_ledger_api, name='customer_ledger_api'),

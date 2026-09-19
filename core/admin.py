@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Product, Invoice, InvoiceItem, Customer, CompanyProfile, StockRecord, Supplier
+from .models import Product, Invoice, InvoiceItem, Customer, CompanyProfile, StockRecord, Supplier, SupplierPaymentRecord
 
 class UserDataAdmin(admin.ModelAdmin):
     """A base admin class for models with a 'user' field."""
@@ -25,7 +25,7 @@ class ProductAdmin(UserDataAdmin):
     ordering = ('name',)
 
 class SupplierAdmin(UserDataAdmin):
-    list_display = ('name', 'phone', 'address')
+    list_display = ('name', 'phone', 'address', 'due')
     search_fields = ('name', 'phone')
     ordering = ('name',)
     
@@ -54,9 +54,15 @@ class StockRecordAdmin(UserDataAdmin):
     list_filter = ('stock_type', 'date')
     search_fields = ('product__name',)
 
+class SupplierPaymentRecordAdmin(UserDataAdmin):
+    list_display = ('supplier', 'transaction_type', 'amount', 'payment_method', 'date')
+    list_filter = ('transaction_type', 'payment_method', 'date')
+    search_fields = ('supplier__name',)
+
 admin.site.register(Product, ProductAdmin)
 admin.site.register(Customer, CustomerAdmin)
 admin.site.register(Invoice, InvoiceAdmin)
 admin.site.register(CompanyProfile, CompanyProfileAdmin)
 admin.site.register(StockRecord, StockRecordAdmin)
 admin.site.register(Supplier, SupplierAdmin)
+admin.site.register(SupplierPaymentRecord, SupplierPaymentRecordAdmin)
