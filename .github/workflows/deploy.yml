@@ -15,9 +15,9 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            cd /home/django/toufixlab/invoiceX/invoicex && \
+            cd /home/django/toufixlab/invoiceX && \
             git pull origin master && \
-            source /home/django/toufixlab/invoiceX/invoicex/venv/bin/activate && \
+            source /home/django/toufixlab/invoiceX/venv/bin/activate && \
             pip install -r requirements.txt && \
             python manage.py migrate && \
             python manage.py collectstatic --noinput && \

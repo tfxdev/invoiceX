@@ -10,17 +10,11 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
 from pathlib import Path
-from dotenv import load_dotenv
-
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-load_dotenv()
-
-SERVER = os.environ.get('SERVER', 'False') == 'True'
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -31,12 +25,8 @@ SECRET_KEY = 'django-insecure-lmproac6f&k#@q^1pj5)gi97zszjuzr$#@mhjsj_hfrofnjsem
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*', 'localhost', 'invoicex.ndxtm.space']
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:8000', 
-    'https://fungoid-lorrie-coronally.ngrok-free.dev',
-    'https://invoicex.ndxtm.space',
-]
+ALLOWED_HOSTS = ['*']
+
 
 # Application definition
 
@@ -79,33 +69,16 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'invoicex.wsgi.application'
 
-# Authentication redirects: the landing page is also the sign-in page.
-LOGIN_URL = 'landing'
-LOGIN_REDIRECT_URL = 'home_dashboard'
-LOGOUT_REDIRECT_URL = 'landing'
-
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if SERVER:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'invoicex',
-            'USER': 'invoicex',
-            'PASSWORD': 'invoicex',
-            'HOST': 'localhost',
-            'PORT': '',
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 
 # Password validation
@@ -146,12 +119,10 @@ TIME_INPUT_FORMATS = ['%I:%M %p', '%I:%M%p', '%H:%M']
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-
-# Default primary key field type 
+STATIC_ROOT = 'staticfiles'
+# Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-
+GEMINI_API_KEY = 'AIzaSyBg8WC7nDu6ih3YUIcjpHy8J772m5fEWyg'
