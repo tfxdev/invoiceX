@@ -1,0 +1,7 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block userlinks %}
+    <a href="{% url 'create_invoice' %}" class="button" target="_blank">Create Invoice</a>
+    {{ block.super }}
+{% endblock %}

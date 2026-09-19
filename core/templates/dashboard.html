@@ -1,0 +1,657 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - KOT POS{% endblock %}
+
+{% block content %}
+<style>
+    .metric-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        transition: transform 0.2s;
+    }
+    .metric-card:hover { transform: translateY(-3px); box-shadow: 0 8px 12px rgba(0,0,0,0.05); }
+
+    .icon-box {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-right: 15px;
+    }
+
+    .metric-value { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0; }
+    .metric-label { font-size: 0.85rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+
+    .dashboard-panel {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+        height: 100%;
+    }
+    .panel-header { padding: 15px 20px; border-bottom: 1px solid #e5e7eb; background: #f9fafb; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .panel-title { font-size: 1rem; font-weight: 700; color: #111827; margin: 0; }
+
+    .table-hover tbody tr:hover { background-color: rgba(0, 106, 78, 0.03); }
+
+    .mini-stat {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 14px 16px;
+        height: 100%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .mini-stat .mini-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+    .mini-stat .mini-value { font-size: 1.15rem; font-weight: 700; color: #111827; margin: 0; }
+    .mini-stat i { opacity: 0.85; }
+
+    .chart-wrap { position: relative; width: 100%; }
+    .chart-wrap.trend { height: 320px; }
+    .chart-wrap.doughnut { height: 260px; }
+    .chart-wrap.tall { height: 300px; }
+    .chart-wrap.products { height: 320px; }
+    .chart-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: #9ca3af; text-align: center; padding: 1rem; }
+
+    .debtor-row { padding: 10px 4px; }
+    .debtor-bar { height: 6px; border-radius: 999px; background: #eef2f7; overflow: hidden; margin-top: 6px; }
+    .debtor-bar > span { display: block; height: 100%; border-radius: 999px; }
+
+    .range-btn { font-size: 0.8rem; font-weight: 700; padding: 4px 12px; }
+</style>
+
+<div class="container mt-4 mb-5">
+
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <div>
+            <h2 class="fw-bold text-dark mb-1">Business Overview</h2>
+            <p class="text-muted mb-0">Welcome back, {{ user.username|title }}. Here is what's happening.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="btn-group" role="group" aria-label="Date range">
+                <a href="?range=7" class="btn range-btn {% if range_days == 7 %}btn-dark{% else %}btn-outline-secondary{% endif %}">7D</a>
+                <a href="?range=30" class="btn range-btn {% if range_days == 30 %}btn-dark{% else %}btn-outline-secondary{% endif %}">30D</a>
+                <a href="?range=90" class="btn range-btn {% if range_days == 90 %}btn-dark{% else %}btn-outline-secondary{% endif %}">90D</a>
+            </div>
+            <a href="{% url 'dashboard_export_csv' %}?range={{ range_days }}" class="btn btn-outline-secondary fw-bold shadow-sm px-3 py-2" style="border-radius: 8px;">
+                <i class="fa-solid fa-file-csv me-2"></i> Export CSV
+            </a>
+            <a href="{% url 'create_invoice' %}" class="btn text-white fw-bold shadow-sm px-4 py-2" style="background-color: #006a4e; border-radius: 8px;">
+                <i class="fa-solid fa-plus me-2"></i> Quick Invoice
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-success bg-opacity-10 text-success"><i class="fa-solid fa-bangladeshi-taka-sign"></i></div>
+                <div>
+                    <p class="metric-label">Today's Revenue</p>
+                    <p class="metric-value">{{ today_revenue|floatformat:2 }} ৳</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-primary bg-opacity-10 text-primary"><i class="fa-solid fa-file-invoice"></i></div>
+                <div>
+                    <p class="metric-label">Total Invoices</p>
+                    <p class="metric-value">{{ total_invoices_count }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-danger bg-opacity-10 text-danger"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+                <div>
+                    <p class="metric-label">Outstanding</p>
+                    <p class="metric-value">{{ total_due|floatformat:2 }} ৳</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="metric-card">
+                <div class="icon-box bg-warning bg-opacity-10 text-warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div>
+                    <p class="metric-label">Low Stock Items</p>
+                    <p class="metric-value {% if low_stock_count > 0 %}text-danger{% endif %}">{{ low_stock_count }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-calendar-days me-1 text-primary"></i> This Month</p>
+                <p class="mini-value">{{ month_revenue|floatformat:2 }} ৳</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-sack-dollar me-1 text-success"></i> Gross Profit ({{ range_days }}D)</p>
+                <p class="mini-value {% if gross_profit_range < 0 %}text-danger{% else %}text-success{% endif %}">{{ gross_profit_range|floatformat:2 }} ৳</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-percent me-1 text-info"></i> Profit Margin (All-time)</p>
+                <p class="mini-value">{{ profit_margin|floatformat:1 }}%</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-receipt me-1 text-info"></i> Avg. Invoice</p>
+                <p class="mini-value">{{ avg_invoice_value|floatformat:2 }} ৳</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-users me-1 text-success"></i> Customers</p>
+                <p class="mini-value">{{ total_customers }}</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-truck-field me-1 text-warning"></i> Payable to Suppliers</p>
+                <p class="mini-value text-danger">{{ total_payable|floatformat:2 }} ৳</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-warehouse me-1 text-warning"></i> Inventory Value</p>
+                <p class="mini-value">{{ inventory_value|floatformat:2 }} ৳</p>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="mini-stat">
+                <p class="mini-label"><i class="fa-solid fa-box-archive me-1 text-secondary"></i> Dead Stock ({{ range_days }}D)</p>
+                <p class="mini-value {% if dead_stock_count > 0 %}text-danger{% endif %}">{{ dead_stock_count }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if costs_missing > 0 %}
+    <div class="alert alert-warning d-flex align-items-center gap-2 py-2 px-3 small" role="alert">
+        <i class="fa-solid fa-circle-info"></i>
+        <div><strong>{{ costs_missing }}</strong> product{{ costs_missing|pluralize }} have no cost price set, so profit figures are overstated. <a href="{% url 'product_list' %}" class="alert-link">Set cost prices</a>.</div>
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-8">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-chart-column me-2" style="color:#6366f1;"></i>Revenue vs Profit</h5>
+                    <span class="small text-muted">Last {{ range_days }} days</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap trend"><canvas id="trendChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-scale-balanced me-2" style="color:#ec4899;"></i>Sales vs Purchases</h5>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap doughnut"><canvas id="typeChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-fire me-2" style="color:#f59e0b;"></i>Top Selling Products</h5>
+                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-outline-secondary">Inventory</a>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap products"><canvas id="productsChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-layer-group me-2" style="color:#8b5cf6;"></i>Sales by Category</h5>
+                    <span class="small text-muted">{{ range_days }}D</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap doughnut"><canvas id="categoryChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-money-bill-transfer me-2" style="color:#0ea5e9;"></i>Cash Flow</h5>
+                    <span class="small text-muted">In vs Out ({{ range_days }}D)</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap tall"><canvas id="cashChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-6">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-hourglass-half me-2" style="color:#ef4444;"></i>Receivables Aging</h5>
+                    <span class="small text-muted">All outstanding</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap tall"><canvas id="agingChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-clock me-2" style="color:#14b8a6;"></i>Peak Trading Hours</h5>
+                    <span class="small text-muted">Sales by hour ({{ range_days }}D)</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap tall"><canvas id="hoursChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-credit-card me-2" style="color:#f97316;"></i>Payment Methods</h5>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap doughnut"><canvas id="methodChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-truck-field me-2" style="color:#a855f7;"></i>Purchase Spend by Supplier</h5>
+                    <a href="{% url 'supplier_list' %}" class="btn btn-sm btn-outline-secondary">Suppliers</a>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap products"><canvas id="supplierChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-rotate me-2" style="color:#22c55e;"></i>Inventory Turnover</h5>
+                    <span class="small text-muted">Sold vs on hand</span>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap products"><canvas id="turnoverChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-hand-holding-dollar me-2" style="color:#0ea5e9;"></i>Collections & Top Dues</h5>
+                </div>
+                <div class="p-3">
+                    <div class="chart-wrap doughnut mb-3"><canvas id="paymentChart"></canvas></div>
+                    {% if top_debtors %}
+                        {% for c in top_debtors %}
+                        <div class="debtor-row border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold text-dark">{{ c.name }}</span>
+                                <span class="fw-bold text-danger">{{ c.due|floatformat:2 }} ৳</span>
+                            </div>
+                            <div class="debtor-bar"><span style="width: {% widthratio c.due top_debtors.0.due 100 %}%; background: linear-gradient(90deg,#f43f5e,#fb923c);"></span></div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center text-muted mb-0 py-2">No customer dues outstanding.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-truck-field me-2 text-danger"></i>Top Supplier Payables</h5>
+                    <a href="{% url 'supplier_list' %}" class="btn btn-sm btn-outline-secondary">Suppliers</a>
+                </div>
+                <div class="p-3">
+                    {% if top_payables %}
+                        {% for s in top_payables %}
+                        <div class="debtor-row border-top">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold text-dark">{{ s.supplier__name }}</span>
+                                <span class="fw-bold text-danger">{{ s.due|floatformat:2 }} ৳</span>
+                            </div>
+                            <div class="debtor-bar"><span style="width: {% widthratio s.due top_payables.0.due 100 %}%; background: linear-gradient(90deg,#a855f7,#ec4899);"></span></div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center text-muted mb-0 py-4">No supplier payables outstanding.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <div class="col-12 col-lg-7">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>Recent Transactions</h5>
+                    <a href="{% url 'invoice_list' %}" class="btn btn-sm btn-outline-secondary">View All</a>
+                </div>
+                <div class="table-responsive p-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted small text-uppercase">
+                            <tr>
+                                <th class="ps-4">Inv #</th>
+                                <th>Party</th>
+                                <th>Type</th>
+                                <th class="text-end pe-4">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in recent_invoices %}
+                            <tr>
+                                <td class="ps-4 fw-bold"><a href="{% url 'invoice_view' inv.id %}" class="text-decoration-none" style="color: #006a4e;">#{{ inv.id }}</a></td>
+                                <td class="text-dark">
+                                    {% if inv.invoice_type == 'purchase' %}
+                                        {% if inv.supplier %}
+                                            {{ inv.supplier.name }}
+                                        {% elif inv.customer %}
+                                            {{ inv.customer.name }}
+                                        {% else %}
+                                            <span class='text-muted fst-italic'>Unknown supplier</span>
+                                        {% endif %}
+                                    {% elif inv.customer %}
+                                        {{ inv.customer.name }}
+                                    {% else %}
+                                        <span class='text-muted fst-italic'>Walk-in</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if inv.invoice_type == 'sale' %}
+                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2">SALE</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25 px-2">PURCHASE</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4 fw-bold">{{ inv.payable_value|floatformat:2 }} ৳</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center py-4 text-muted">No recent transactions.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+            <div class="dashboard-panel">
+                <div class="panel-header">
+                    <h5 class="panel-title"><i class="fa-solid fa-boxes-packing me-2 text-danger"></i>Restock Required</h5>
+                    <a href="{% url 'product_list' %}" class="btn btn-sm btn-outline-secondary">Inventory</a>
+                </div>
+                <div class="p-3">
+                    {% if low_stock_products %}
+                        <div class="list-group list-group-flush">
+                            {% for product in low_stock_products %}
+                            <div class="list-group-item px-2 py-3 d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1 fw-bold text-dark">{{ product.name }}</h6>
+                                    <small class="text-muted">Price: {{ product.price|floatformat:2 }} ৳</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge rounded-pill {% if product.qty <= 0 %}bg-danger{% else %}bg-warning text-dark{% endif %} px-3 py-2 fs-6">
+                                        {{ product.qty }} left
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5 text-muted">
+                            <i class="fa-solid fa-check-circle fs-1 mb-3 text-success opacity-50"></i>
+                            <p class="mb-0">All products are sufficiently stocked!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{{ chart_data|json_script:"chart-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const dataEl = document.getElementById('chart-data');
+    if (!dataEl || typeof Chart === 'undefined') return;
+    const cd = JSON.parse(dataEl.textContent);
+
+    const BDT = (v) => '৳ ' + Number(v).toLocaleString();
+    const PALETTE = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316'];
+    const hasAny = (arr) => Array.isArray(arr) && arr.some(v => Number(v) !== 0);
+
+    function emptyState(canvas, message) {
+        const wrap = canvas.parentElement;
+        wrap.innerHTML = '<div class="chart-empty"><div><i class="fa-solid fa-chart-simple fs-2 mb-2 opacity-50"></i><div>' + message + '</div></div></div>';
+    }
+
+    const legendStyle = { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8 } };
+    const moneyTooltip = { callbacks: { label: (c) => c.label + ': ' + BDT(c.parsed.y !== undefined ? c.parsed.y : c.parsed) } };
+
+    // 1. Revenue vs Profit trend (bars = revenue, line = profit)
+    const trendCtx = document.getElementById('trendChart');
+    if (trendCtx) {
+        const ctx = trendCtx.getContext('2d');
+        const gSales = ctx.createLinearGradient(0, 0, 0, 320);
+        gSales.addColorStop(0, 'rgba(16, 185, 129, 0.95)');
+        gSales.addColorStop(1, 'rgba(16, 185, 129, 0.35)');
+        const gBuy = ctx.createLinearGradient(0, 0, 0, 320);
+        gBuy.addColorStop(0, 'rgba(244, 63, 94, 0.95)');
+        gBuy.addColorStop(1, 'rgba(244, 63, 94, 0.30)');
+        new Chart(ctx, {
+            data: {
+                labels: cd.trend_labels,
+                datasets: [
+                    { type: 'bar', label: 'Sales', data: cd.trend_sales, backgroundColor: gSales, borderRadius: 6, maxBarThickness: 22 },
+                    { type: 'bar', label: 'Purchases', data: cd.trend_purchases, backgroundColor: gBuy, borderRadius: 6, maxBarThickness: 22 },
+                    { type: 'line', label: 'Profit', data: cd.trend_profit, borderColor: '#6366f1', backgroundColor: '#6366f1', borderWidth: 2, pointRadius: 3, tension: 0.35 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 8 } },
+                    tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + BDT(c.parsed.y) } }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { callback: (v) => '৳' + v }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Sales vs Purchases doughnut
+    const typeCtx = document.getElementById('typeChart');
+    if (typeCtx) {
+        if (!hasAny(cd.type_values)) { emptyState(typeCtx, 'No invoices yet.'); }
+        else new Chart(typeCtx, {
+            type: 'doughnut',
+            data: { labels: cd.type_labels, datasets: [{ data: cd.type_values, backgroundColor: ['#10b981', '#f43f5e'], borderWidth: 0, hoverOffset: 8 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: legendStyle, tooltip: { callbacks: { label: (c) => c.label + ': ' + BDT(c.parsed) } } } }
+        });
+    }
+
+    // 3. Top selling products (horizontal bars)
+    const prodCtx = document.getElementById('productsChart');
+    if (prodCtx) {
+        if (!cd.product_labels.length) emptyState(prodCtx, 'No sales in this period.');
+        else new Chart(prodCtx, {
+            type: 'bar',
+            data: { labels: cd.product_labels, datasets: [{ label: 'Units sold', data: cd.product_qty, backgroundColor: PALETTE, borderRadius: 6, maxBarThickness: 24 }] },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => c.parsed.x + ' units' } } },
+                scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // 4. Sales by category
+    const catCtx = document.getElementById('categoryChart');
+    if (catCtx) {
+        if (!cd.category_labels.length) emptyState(catCtx, 'No categorised sales yet.');
+        else new Chart(catCtx, {
+            type: 'doughnut',
+            data: { labels: cd.category_labels, datasets: [{ data: cd.category_values, backgroundColor: PALETTE, borderWidth: 0, hoverOffset: 8 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: legendStyle, tooltip: { callbacks: { label: (c) => c.label + ': ' + BDT(c.parsed) } } } }
+        });
+    }
+
+    // 5. Cash flow in vs out
+    const cashCtx = document.getElementById('cashChart');
+    if (cashCtx) {
+        if (!hasAny(cd.cash_values)) emptyState(cashCtx, 'No cash movement in this period.');
+        else new Chart(cashCtx, {
+            type: 'bar',
+            data: { labels: cd.cash_labels, datasets: [{ label: 'Amount', data: cd.cash_values, backgroundColor: ['#10b981', '#f43f5e'], borderRadius: 8, maxBarThickness: 80 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => BDT(c.parsed.y) } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: (v) => '৳' + v }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // 6. Receivables aging
+    const agingCtx = document.getElementById('agingChart');
+    if (agingCtx) {
+        if (!hasAny(cd.aging_values)) emptyState(agingCtx, 'Nothing outstanding. Nice.');
+        else new Chart(agingCtx, {
+            type: 'bar',
+            data: { labels: cd.aging_labels, datasets: [{ label: 'Outstanding', data: cd.aging_values, backgroundColor: ['#22c55e', '#f59e0b', '#f97316', '#ef4444'], borderRadius: 8, maxBarThickness: 80 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => BDT(c.parsed.y) } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: (v) => '৳' + v }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // 7. Peak trading hours
+    const hoursCtx = document.getElementById('hoursChart');
+    if (hoursCtx) {
+        if (!hasAny(cd.peak_hours)) emptyState(hoursCtx, 'No sales in this period.');
+        else new Chart(hoursCtx, {
+            type: 'bar',
+            data: {
+                labels: cd.peak_hours.map((_, h) => String(h).padStart(2, '0') + ':00'),
+                datasets: [{ label: 'Sales', data: cd.peak_hours, backgroundColor: '#14b8a6', borderRadius: 4, maxBarThickness: 22 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => BDT(c.parsed.y) } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: (v) => '৳' + v }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true } } }
+            }
+        });
+    }
+
+    // 8. Payment methods
+    const methodCtx = document.getElementById('methodChart');
+    if (methodCtx) {
+        if (!cd.method_labels.length) emptyState(methodCtx, 'No payments recorded yet.');
+        else new Chart(methodCtx, {
+            type: 'doughnut',
+            data: { labels: cd.method_labels, datasets: [{ data: cd.method_values, backgroundColor: PALETTE, borderWidth: 0, hoverOffset: 8 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: legendStyle, tooltip: { callbacks: { label: (c) => c.label + ': ' + BDT(c.parsed) } } } }
+        });
+    }
+
+    // 9. Purchase spend by supplier
+    const supCtx = document.getElementById('supplierChart');
+    if (supCtx) {
+        if (!cd.supplier_labels.length) emptyState(supCtx, 'No supplier-linked purchases in this period.');
+        else new Chart(supCtx, {
+            type: 'bar',
+            data: { labels: cd.supplier_labels, datasets: [{ label: 'Spend', data: cd.supplier_values, backgroundColor: PALETTE, borderRadius: 6, maxBarThickness: 24 }] },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => BDT(c.parsed.x) } } },
+                scales: { x: { beginAtZero: true, ticks: { callback: (v) => '৳' + v }, grid: { color: '#f1f5f9' } }, y: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // 10. Inventory turnover: sold vs on hand
+    const turnCtx = document.getElementById('turnoverChart');
+    if (turnCtx) {
+        if (!cd.turnover_labels.length) emptyState(turnCtx, 'No sales in this period.');
+        else new Chart(turnCtx, {
+            type: 'bar',
+            data: {
+                labels: cd.turnover_labels,
+                datasets: [
+                    { label: 'Units sold', data: cd.turnover_sold, backgroundColor: '#22c55e', borderRadius: 6, maxBarThickness: 22 },
+                    { label: 'In stock now', data: cd.turnover_stock, backgroundColor: '#94a3b8', borderRadius: 6, maxBarThickness: 22 }
+                ]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: legendStyle, tooltip: { callbacks: { label: (c) => c.dataset.label + ': ' + c.parsed.x } } },
+                scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false } } }
+            }
+        });
+    }
+
+    // 11. Collections vs outstanding
+    const payCtx = document.getElementById('paymentChart');
+    if (payCtx) {
+        if (!hasAny(cd.payment_values)) emptyState(payCtx, 'No sale invoices yet.');
+        else new Chart(payCtx, {
+            type: 'doughnut',
+            data: { labels: cd.payment_labels, datasets: [{ data: cd.payment_values, backgroundColor: ['#0ea5e9', '#f59e0b'], borderWidth: 0, hoverOffset: 8 }] },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: legendStyle, tooltip: { callbacks: { label: (c) => c.label + ': ' + BDT(c.parsed) } } } }
+        });
+    }
+})();
+</script>
+{% endblock %}

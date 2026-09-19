@@ -1,0 +1,49 @@
+@media print {
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #fff;
+        font-family: 'Times New Roman', Times, serif;
+    }
+    .invoice-container {
+        width: 210mm;
+        min-height: 297mm;
+        padding: 20mm;
+        margin: 0 auto;
+        border: none;
+        box-shadow: none;
+    }
+    .no-print {
+        display: none;
+    }
+    .table {
+        font-size: 12pt;
+    }
+    .table th, .table td {
+        padding: 0.5rem;
+    }
+    .invoice-header, .invoice-footer {
+        text-align: center;
+    }
+    .signature-line {
+        margin-top: 50px;
+        border-top: 1px solid #000;
+        padding-top: 10px;
+        display: inline-block;
+        width: 200px;
+    }
+}
+
+body {
+    background-color: #f8f9fa;
+}
+
+.invoice-container {
+    max-width: 800px;
+    margin: 30px auto;
+    padding: 30px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}

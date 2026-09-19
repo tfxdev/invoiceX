@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tall AI Order Pad (With Financials)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+            background: #e9ecef; 
+            color: #000;
+        }
+
+        /* The Print Button Bar */
+        .no-print-bar {
+            text-align: center;
+            padding: 15px;
+            background: #333;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .print-btn {
+            background: #006a4e; color: white; border: none; 
+            padding: 10px 20px; font-size: 16px; font-weight: bold; 
+            border-radius: 5px; cursor: pointer;
+        }
+
+        /* The A4 Sheet containing 2 tall pads */
+        .a4-sheet {
+            width: 210mm;
+            height: 297mm;
+            background: white;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: row;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Individual Tall Pad */
+        .tall-pad {
+            width: 50%;
+            height: 100%; 
+            padding: 10mm 8mm;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px dashed #ccc; 
+        }
+        
+        .tall-pad:last-child { border-right: none; }
+
+        /* Pad Header */
+        .pad-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #000;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
+        }
+        .pad-header h2 { font-size: 22px; text-transform: uppercase; letter-spacing: 1px; }
+        .checkboxes { font-size: 12px; font-weight: bold; display: flex; gap: 10px;}
+        .box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #000; margin-right: 4px; vertical-align: middle;}
+
+        /* Meta Grid */
+        .meta-line {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .meta-line .line {
+            flex-grow: 1;
+            border-bottom: 1px dashed #666;
+            height: 16px;
+            margin-left: 5px;
+        }
+
+        /* Tall Table for 24 Items (Adjusted to fit financials) */
+        .tall-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            flex-grow: 1; 
+        }
+        .tall-table th {
+            border: 2px solid #000;
+            background: #eee;
+            padding: 6px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .tall-table td {
+            border: 1px solid #666;
+            height: 32px; 
+        }
+        .tall-table td.sl-num {
+            text-align: center;
+            font-weight: normal;
+            color: #444;
+            font-size: 14px;
+            background: #fdfdfd;
+            font-style: italic;
+        }
+        
+        .col-sl { width: 12%; }
+        .col-item { width: 68%; text-align: left; padding-left: 6px; }
+        .col-qty { width: 20%; text-align: center; }
+
+        /* --- NEW: Financials & Notes Footer --- */
+        .pad-footer { margin-top: auto; }
+        
+        .financial-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .financial-box {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .financial-box .line {
+            flex-grow: 1;
+            border-bottom: 1px dashed #000;
+            margin-left: 5px;
+            height: 16px;
+        }
+
+        .notes-box {
+            width: 100%;
+            height: 35px;
+            border: 1.5px dashed #666;
+            margin-top: 4px;
+        }
+
+        @media print {
+            @page { margin: 0; size: A4 portrait; }
+            body { background: white; }
+            .no-print-bar { display: none !important; }
+            .a4-sheet { box-shadow: none; width: 100%; height: 100%; page-break-after: always; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="no-print-bar">
+        <p style="margin-bottom: 10px;">Prints 2 tall pads per A4 sheet. Cut vertically down the dashed line.</p>
+        <button class="print-btn" onclick="window.print()">Print Tall Pads</button>
+    </div>
+
+    <div class="a4-sheet">
+        
+        <div class="tall-pad">
+            <div class="pad-header">
+                <h2>ORDER</h2>
+                <div class="checkboxes">
+                    <span><span class="box"></span>Sale</span>
+                    <span><span class="box"></span>Buy</span>
+                </div>
+            </div>
+            
+            <div class="meta-line">Customer: <div class="line"></div></div>
+            <div class="meta-line">Date: <div class="line" style="margin-right: 15px;"></div> Ph: <div class="line"></div></div>
+            
+            <table class="tall-table">
+                <thead>
+                    <tr><th class="col-sl">SL</th><th class="col-item">Product Name</th><th class="col-qty">Qty</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="sl-num">1</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">2</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">3</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">4</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">5</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">6</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">7</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">8</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">9</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">10</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">11</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">12</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">13</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">14</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">15</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">16</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">17</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">18</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">19</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">20</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">21</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">22</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">23</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">24</td><td></td><td></td></tr>
+                </tbody>
+            </table>
+            
+            <div class="pad-footer">
+                <div class="financial-row">
+                    <div class="financial-box">Discount: <div class="line"></div></div>
+                    <div class="financial-box">Paid Amt: <div class="line"></div></div>
+                </div>
+                <div class="meta-line" style="font-size: 11px; margin-bottom: 0;">Notes / Instructions:</div>
+                <div class="notes-box"></div>
+            </div>
+        </div>
+
+        <div class="tall-pad">
+            <div class="pad-header">
+                <h2>ORDER</h2>
+                <div class="checkboxes">
+                    <span><span class="box"></span>Sale</span>
+                    <span><span class="box"></span>Buy</span>
+                </div>
+            </div>
+            
+            <div class="meta-line">Customer: <div class="line"></div></div>
+            <div class="meta-line">Date: <div class="line" style="margin-right: 15px;"></div> Ph: <div class="line"></div></div>
+            
+            <table class="tall-table">
+                <thead>
+                    <tr><th class="col-sl">SL</th><th class="col-item">Product Name</th><th class="col-qty">Qty</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td class="sl-num">1</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">2</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">3</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">4</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">5</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">6</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">7</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">8</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">9</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">10</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">11</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">12</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">13</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">14</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">15</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">16</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">17</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">18</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">19</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">20</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">21</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">22</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">23</td><td></td><td></td></tr>
+                    <tr><td class="sl-num">24</td><td></td><td></td></tr>
+                </tbody>
+            </table>
+            
+            <div class="pad-footer">
+                <div class="financial-row">
+                    <div class="financial-box">Discount: <div class="line"></div></div>
+                    <div class="financial-box">Paid Amt: <div class="line"></div></div>
+                </div>
+                <div class="meta-line" style="font-size: 11px; margin-bottom: 0;">Notes / Instructions:</div>
+                <div class="notes-box"></div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

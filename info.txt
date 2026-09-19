@@ -1,0 +1,63 @@
+ALTER ROLE invoicex SET client_encoding TO 'utf8';
+ALTER ROLE invoicex SET default_transaction_isolation TO 'read committed';
+ALTER ROLE invoicex SET timezone TO 'UTC';
+
+GRANT ALL PRIVILEGES ON DATABASE invoicex TO invoicex;
+
+
+sudo nano /etc/systemd/system/gunicorn_invoicex.socket
+
+[Unit]
+Description=invoicex gunicorn socket
+
+[Socket]
+ListenStream=/run/gunicorn_invoicex.sock
+
+[Install]
+WantedBy=sockets.target
+
+sudo nano /etc/systemd/system/gunicorn_invoicex.service
+
+[Unit]
+Description=invoicex gunicorn daemon
+Requires=gunicorn_invoicex.socket
+After=network.target
+
+[Service]
+User=django
+Group=www-data
+WorkingDirectory=/home/django/toufixlab/invoiceX/invoicex
+ExecStart=/home/django/toufixlab/invoiceX/invoicex/venv/bin/gunicorn \
+          --access-logfile - \
+          --workers 3 \
+          --bind unix:/run/gunicorn_invoicex.sock \
+          invoicex.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
+
+
+sudo systemctl start gunicorn_invoicex.socket
+sudo systemctl enable gunicorn_invoicex.socket
+
+sudo systemctl status gunicorn_invoicex.socket
+
+file /run/gunicorn_invoicex.sock
+sudo systemctl status gunicorn_invoicex
+
+
+
+server {
+    listen 80;
+    server_name invoicex.ndxtm.space www.invoicex.ndxtm.space;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/django/toufixlab/invoiceX/invoicex;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn_invoicex.sock;
+    }
+}
